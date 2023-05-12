@@ -199,6 +199,20 @@ class TestSurrogateData_V1(unittest.TestCase, NumpyUnitTest):
                 self.assertArrayEqual(A.F, F[-size:])
                 self.assertArrayEqual(A.X, X[-size:])
 
+    def test_getitem(self):
+        S = Parameters(5, surrogate_data_mahalanobis_space=False)
+
+        InX = np.random.rand(30,5)
+        InY = np.random.rand(30,1)
+
+        A = SurrogateData_V1(S)
+        A.push_many(InX, InY)
+
+        for i in range(30):
+            x, y = A[i]
+            self.assertArrayEqual(x,InX[i])
+            self.assertArrayEqual(y,InY[i])
+
     @unittest.skip('TODO')
     def test_parameters(self):
         pass

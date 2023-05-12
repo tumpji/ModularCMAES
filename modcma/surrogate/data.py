@@ -140,13 +140,12 @@ class SurrogateData_V1(metaclass=ABCMeta):
         #    size = int(math.ceil(size * self.settings.surrogate_data_truncation_ratio))
         #return size
 
-
     def __getitem__(self, items):
-        return
-        pass
+        if self.X is None or self.F is None:
+            return None, None
+        return self.X[items], self.F[items]
 
     # MODEL BUILDING BUSINESS
-
     @property
     def X(self) -> Optional[XType]:  # Covariates
         # TODO: return mahalanobis
