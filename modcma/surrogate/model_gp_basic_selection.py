@@ -1,7 +1,8 @@
 from abc import abstractmethod, ABCMeta
 from functools import cache
-from typing import Tuple, Optional, Type, List, Generator
+from typing import Tuple, Optional, Type, List, Generator, Any
 import operator
+from dataclasses import field, dataclass
 import itertools
 import time
 import copy
@@ -45,14 +46,15 @@ tfd = tfp.distributions
 psd_kernels = tfp.math.psd_kernels
 
 
-class _GaussianProcessModelMixtureBase:
+# class _GaussianProcessModelMixtureBase:
+
+class _GaussianProcessModelSelectionBase(SurrogateModelBase):
     # TODO: RENAME
 
     def __init__(self, parameters: Parameters) -> None:
         self.parameters = parameters
         self.MAX_MODELS = self.parameters.surrogate_model_selection_max_models
         self.MAX_TIME = self.parameters.surrogate_model_selection_max_seconds
-
         self.random_state = np.random.RandomState(
             self.parameters.surrogate_model_selection_random_state)
 
@@ -72,6 +74,7 @@ class _GaussianProcessModelMixtureBase:
             #Constant,
         ]
 
+    @abstractmethod
     def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
         yield from self._building_blocks
 
@@ -115,24 +118,16 @@ class _GaussianProcessModelMixtureBase:
             return None
         return self.best_model._predict_with_confidence(X)
 
-
-
-class GaussianProcessBasicSelection(_GaussianProcessModelMixtureBase, SurrogateModelBase):
-    def __init__(self, parameters: Parameters):
-        SurrogateModelBase.__init__(self, parameters)
-        _GaussianProcessModelMixtureBase.__init__(self, parameters)
-
     def df(self):
-        return super().df
-
-    def _fit(self, X: XType, F: YType, W: YType) -> None:
-        return super()._fit(X, F, W)
-
-    def _predict(self, X: XType) -> YType:
-        return super(_GaussianProcessModelMixtureBase, self)._predict(X)
+        return 0
 
 
-class GaussianProcessBasicAdditiveSelection(GaussianProcessBasicSelection):
+class GaussianProcessBasicSelection(_GaussianProcessModelSelectionBase):
+    def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
+        yield from super()._generate_kernel_space()
+
+
+class GaussianProcessBasicAdditiveSelection(_GaussianProcessModelSelectionBase):
     ''' <model> Gaussian Process model that chooses the best addition of two kernels'''
 
     def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
@@ -143,7 +138,7 @@ class GaussianProcessBasicAdditiveSelection(GaussianProcessBasicSelection):
             yield a + b
 
 
-class GaussianProcessBasicMultiplicativeSelection(GaussianProcessBasicSelection):
+class GaussianProcessBasicMultiplicativeSelection(_GaussianProcessModelSelectionBase):
     ''' <model> Gaussian Process model that chooses the best multiplication of two kernels'''
 
     def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
@@ -154,8 +149,9 @@ class GaussianProcessBasicMultiplicativeSelection(GaussianProcessBasicSelection)
             yield a * b
 
 
-class GaussianProcessBasicBinarySelection(GaussianProcessBasicSelection):
-    ''' <model> Gaussian Process model that chooses the best addition or multiplication of two kernels'''
+class GaussianProcessBasicBinarySelection(_GaussianProcessModelSelectionBase):
+    ''' <model> Gaussian Process model that chooses the best
+    addition or multiplication of two kernels'''
 
     def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
         yield from super()._generate_kernel_space()
@@ -166,57 +162,64 @@ class GaussianProcessBasicBinarySelection(GaussianProcessBasicSelection):
                 yield a + b
 
 
-class _GaussianProcessModelSearchBase(_GaussianProcessModelMixtureBase, SurrogateModelBase):
-    def __init__(self, parameters, random_state=None):
-        self.parameters = parameters
-        self.best_model = None
+# ##############################################################################
+# #### << Search Based Methods >>
+# ##############################################################################
 
-        self.random_state = np.random.RandomState(
-            self.parameters.surrogate_model_selection_random_state)
 
+class GaussianProcessGreedySearch(_GaussianProcessModelSearchBase):
+    ''' Expands the best node (based on the loss)
+        The limit is:
+            a) the best node is already expanded
+            b) time
+            c) number of expansion of kernels
+    '''
     def _expand_node(self, base_kernel):
-        order = np.arange(2 * len(self._basis))
-        indices = np.repeat(np.arange(len(self._basis), dtype=np.int_), 2)
-        operations = np.tile(['+', '*'], len(self._basis))
-
-        if self.parameters.surrogate_model_selection_randomization:
-            self.random_state.shuffle(order)
-
-        for i in order:
-            kernel, operation = self._basis[indices[i]], operations[i]
-            if operation == '+':
+        if base_kernel is None:
+            yield from self._basis
+        else:
+            for kernel in self._basis:
                 yield base_kernel + kernel
-            elif operation == '*':
                 yield base_kernel * kernel
-            else:
-                raise NotImplementedError(
-                    f'Unknown operation between two kernels {operation} is not implemented')
+
+    def _shuffle_expand_node(self, base_kernel):
+        space = np.array(list(self._expand_node(base_kernel)))
+        if self.parameters.surrogate_model_selection_randomization:
+            self.random_state.shuffle(space)
+        yield from space
 
     def _init_time(self):
         self.time_start = time.time()
+        self.models_checked = 0
 
-    def _check_timeup(self):
-        if self.TRAIN_MAX_TIME_S:
-            if time.time() - self.time_start > self.TRAIN_MAX_TIME_S:
+    def _check_timeup(self, add_model_count=0):
+        # time
+        if self.MAX_TIME:
+            if time.time() - self.time_start > self.MAX_TIME:
                 return True
+
+        # number of models
+        self.models_checked += add_model_count
+        if self.MAX_MODELS:
+            if self.models_checked >= self.MAX_MODELS:
+                return True
+
         return False
 
     def _search_method(self, X: XType, F: YType, W: YType):
         # implements greedy search
         self._init_time()
-        best_state = Constant
-        best_value = self._evaluate_kernel(best_state)
+        best_state = None
+        best_value = self._evaluate_kernel(Constant, X, F, W)
 
-        timeup = False
-
-        while not timeup:
+        while not self._check_timeup():
             new_states, new_values = [], []
 
-            for new_state in self._expand_node(best_state):
-                new_values.append(self._evaluate_kernel(new_state))
+            for new_state in self._shuffle_expand_node(best_state):
+                new_values.append(self._evaluate_kernel(new_state, X, F, W))
                 new_states.append(new_state)
 
-                if timeup := self._check_timeup():
+                if self._check_timeup(add_model_count=1):
                     break
 
             if len(new_values) == 0:
@@ -229,9 +232,10 @@ class _GaussianProcessModelSearchBase(_GaussianProcessModelMixtureBase, Surrogat
                 best_state = new_states[best_new_index]
             else:
                 break
-        return best_state
 
-    def _evaluate_kernel(self, kernel):
+        return best_state if best_state is not None else Constant
+
+    def _evaluate_kernel(self, kernel, X: XType, F: YType, W: YType) -> float:
         # TODO
         return value
         pass
@@ -239,50 +243,46 @@ class _GaussianProcessModelSearchBase(_GaussianProcessModelMixtureBase, Surrogat
     def _fit(self, X: XType, F: YType, W: YType):
         best_kernel = self._search_method(X, F, W)
 
-        self.time_start = time.time()
-        self.best_model = Constant
-        self.best_model = 
-
-        for major_iteration in itertools.count():
-            if major_iteration == 0:
-                for kernel in self._basis:
-                    pass
-
-            pass
-
-        models = []
-        losses = []
-
-        for model in itertools.islice(self._generate_model_space(), self.TRAIN_MAX_MODELS):
-            loss = model._loss(X, F)
-
-            models.append(model)
-            losses.append(loss)
-
-            if self.TRAIN_MAX_TIME_S:
-                if time.time() - time_start > self.TRAIN_MAX_TIME_S:
-                    break
-
-        best_index = np.nanargmin(losses)
-        self.best_model = models[best_index]
+        self.best_model = _GaussianProcessModel(self.parameters, best_kernel)
+        self.best_model._fit(X, F, W)
         return self
 
-    def _predict(self, X: XType) -> YType:
-        return self.best_model._predict(X)
 
-    def _predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
-        return self.best_model._predict_with_confidence(X)
+class GaussianProcessAStar(GaussianProcessGreedySearch):
+    ''' Expands the best promissing node (based on the loss) up to the limit
+        The limit is a) time b) number of expansion of kernels
+    '''
+
+    def _search_method(self, X: XType, F: YType, W: YType):
+        # implements greedy search
+        self._init_time()
+
+        @dataclass(order=True)
+        class Node:
+            kernel: Any = field(compare=False)
+            value: float
+
+        expanded_nodes = []
+        priority_queue = [
+            Node(None, self._evaluate_kernel(Constant, X, F, W))
+        ]
+
+        while not self._check_timeup():
+            priority_queue.sort()
+            act_node = priority_queue.pop(0)
+            expanded_nodes.append(act_node)
+
+            for new_kernel in self._shuffle_expand_node(act_node.kernel):
+                new_node = Node(new_kernel, self._evaluate_kernel(new_kernel, X, F, W))
+                priority_queue.append(new_node)
+
+                if self._check_timeup(add_model_count=1):
+                    break
+
+        all_nodes = expanded_nodes + priority_queue
+        all_nodes.sort()
+        best_state = all_nodes[0].kernel
+        return best_state if best_state is not None else Constant
 
 
-'''
-class GaussianProcessPenalizedAdditiveSelection(GaussianProcessBasicSelection):
-    def penalize_kernel(self, loss, kernel_obj):
-        return super().penalize_kernel(loss, kernel_obj)
 
-    def _predict(self, X: XType) -> YType:
-        return self.best_model._predict(X)
-
-    def _predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
-        return self.best_model._predict_with_confidence(X)
-
-'''
