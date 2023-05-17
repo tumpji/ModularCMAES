@@ -360,7 +360,7 @@ class Parameters(AnnotatedStruct):
     surrogate_model_gp_noisy_samples: bool = True
 
     # only for specific models
-    surrogate_model_selection_criteria: ('LogLikelihood', 'RDE', 'SRDE', 'ESRDE', 'L1', 'L2', 'Kendall') = 'ESRDE'
+    surrogate_model_selection_criteria: ('LogLikelihood', 'RDE', 'SRDE', 'ESRDE', 'L1', 'L2', 'Kendall') = 'L2'
     surrogate_model_selection_cross_validation_folds = 5  # if less than one - no cv
     surrogate_model_selection_cross_validation_random_state: int = None
 
@@ -368,6 +368,12 @@ class Parameters(AnnotatedStruct):
     surrogate_model_gp_max_iterations: int = 5000
     surrogate_model_gp_early_stopping_delta: float = 1e-3
     surrogate_model_gp_early_stopping_patience: int = 20
+
+    # search for best kernel
+    surrogate_model_selection_max_models: Optional[int] = None
+    surrogate_model_selection_max_seconds: Optional[int] = None
+    surrogate_model_selection_random_state: int = 42
+    surrogate_model_selection_randomization: bool = True
 
     __modules__ = (
         "active",

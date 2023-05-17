@@ -53,6 +53,9 @@ class _GaussianProcessModelMixtureBase:
         self.MAX_MODELS = self.parameters.surrogate_model_selection_max_models
         self.MAX_TIME = self.parameters.surrogate_model_selection_max_seconds
 
+        self.random_state = np.random.RandomState(
+            self.parameters.surrogate_model_selection_random_state)
+
         # the selection ...
         self._building_blocks: List[Type[GP_kernel_concrete_base]] = [
             MaternFiveHalves,
@@ -72,11 +75,17 @@ class _GaussianProcessModelMixtureBase:
     def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
         yield from self._building_blocks
 
+    def _shuffle_kernel_space(self):
+        space = np.array(list(self._generate_kernel_space()))
+        if self.parameters.surrogate_model_selection_randomization:
+            self.random_state.shuffle(space)
+        yield from space
+
     def _fit(self, X: XType, F: YType, W: YType):
         time_start = time.time()
         models, losses = [], []
 
-        for i, kernel in enumerate(self._generate_kernel_space()):
+        for i, kernel in enumerate(self._shuffle_kernel_space()):
             if self.MAX_MODELS and i >= self.MAX_MODELS:
                 break
 
@@ -88,17 +97,23 @@ class _GaussianProcessModelMixtureBase:
             if self.MAX_TIME and (time.time() - time_start) >= self.MAX_TIME:
                 break
 
-        best_index = np.nanargmin(losses)
-        self.best_model = models[best_index]
-        self.best_model._fit(X, F, W)
+        if np.all(np.isnan(losses)):
+            self.best_model = None
+        else:
+            best_index = np.nanargmin(losses)
+            self.best_model = models[best_index]
+            self.best_model._fit(X, F, W)
         return self
 
-    def _predict(self, X: XType) -> YType:
+    def _predict(self, X: XType) -> Optional[YType]:
+        if self.best_model is None:
+            return None
         return self.best_model._predict(X)
 
-    def _predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
+    def _predict_with_confidence(self, X: XType) -> Optional[Tuple[YType, YType]]:
+        if self.best_model is None:
+            return None
         return self.best_model._predict_with_confidence(X)
-
 
 
 
