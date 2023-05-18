@@ -93,7 +93,7 @@ class _GaussianProcessModelSelectionBase(SurrogateModelBase):
                 break
 
             model = _GaussianProcessModel(self.parameters, kernel)
-            loss = model._loss(X, F, W)
+            loss = model.compute_loss(X, F, W)
             models.append(model)
             losses.append(loss)
 
@@ -174,6 +174,7 @@ class GaussianProcessGreedySearch(_GaussianProcessModelSearchBase):
             b) time
             c) number of expansion of kernels
     '''
+
     def _expand_node(self, base_kernel):
         if base_kernel is None:
             yield from self._basis
@@ -236,9 +237,8 @@ class GaussianProcessGreedySearch(_GaussianProcessModelSearchBase):
         return best_state if best_state is not None else Constant
 
     def _evaluate_kernel(self, kernel, X: XType, F: YType, W: YType) -> float:
-        # TODO
-        return value
-        pass
+        model = _GaussianProcessModel(self.parameters, kernel)
+        return model.compute_loss(X, F, W)
 
     def _fit(self, X: XType, F: YType, W: YType):
         best_kernel = self._search_method(X, F, W)
@@ -248,7 +248,7 @@ class GaussianProcessGreedySearch(_GaussianProcessModelSearchBase):
         return self
 
 
-class GaussianProcessAStar(GaussianProcessGreedySearch):
+class GaussianProcessHeuristic(GaussianProcessGreedySearch):
     ''' Expands the best promissing node (based on the loss) up to the limit
         The limit is a) time b) number of expansion of kernels
     '''
