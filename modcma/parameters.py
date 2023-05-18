@@ -372,7 +372,8 @@ class Parameters(AnnotatedStruct):
     # search for best kernel
     surrogate_model_selection_max_models: Optional[int] = None
     surrogate_model_selection_max_seconds: Optional[int] = None
-    surrogate_model_selection_random_state: int = 42
+    #surrogate_model_selection_random_state: int = 42
+    surrogate_model_random_state: int = 42
     surrogate_model_selection_randomization: bool = True
 
     __modules__ = (
