@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABCMeta
 from functools import cache
-from typing import Tuple, Optional, Type, List, Generator
+from typing import Tuple, Optional, Type, List, Generator, Union
 import operator
 import itertools
 import time
@@ -65,16 +65,32 @@ def create_positive_variable(default, dtype=tf.float64, name=None):
 def create_constant(default, dtype=tf.float64, name: Optional[str] = None):
     return tf.constant(default, dtype=dtype, name=name)
 
+
+def optionally_create_random_state(
+        random_state: Optional[Union[int, np.random.RandomState]],
+        default_int: Optional[int] = None
+):
+    if random_state is None and default_int is not None:
+        return np.random.RandomState(default_int)
+    if random_state is None or isinstance(random_state, int):
+        return np.random.RandomState(random_state)
+    return random_state
+
 # ###############################################################################
 # ### MODEL BUILDING COMPOSITION MODELS
 # ###############################################################################
 
 
 class _ModelBuildingBase(metaclass=ABCMeta):
-    def __init__(self, parameters, kernel_cls):
+    ''' given kernel, it creates model based on parameters
+        - adds makes noisy / noiseless model
+    '''
+
+    def __init__(self, parameters, kernel_cls, random_state=None):
         self.parameters = parameters
         self.kernel_cls = kernel_cls
         self.mean_fn = None
+        self.random_state = optionally_create_random_state(random_state)
 
         # default
         self.observation_index_points = None
@@ -110,6 +126,7 @@ class _ModelBuildingBase(metaclass=ABCMeta):
         a.observations = None
         a.kernel = None
         return a
+
 
 class _ModelBuilding_Noiseless(_ModelBuildingBase):
     def __init__(self, *args, **kwargs):
@@ -165,16 +182,18 @@ class NoFold:
         h = np.arange(len(X))
         return h, h
 
+
 class _ModelTrainingBase(metaclass=ABCMeta):
     ''' provides training and loss prediction '''
 
-    def __init__(self, parameters: Parameters):
+    def __init__(self,
+                 parameters: Parameters,
+                 random_state=None):
         self.parameters = parameters
         self.training_cache = defaultdict(list)
+        self.random_state = optionally_create_random_state(random_state)
 
         self.FOLDS: int = self.parameters.surrogate_model_selection_cross_validation_folds
-        self.RANDOM_STATE: Optional[int] = \
-            self.parameters.surrogate_model_selection_cross_validation_random_state
 
     @staticmethod
     def create_class(parameters: Parameters):
@@ -182,18 +201,18 @@ class _ModelTrainingBase(metaclass=ABCMeta):
 
     @abstractmethod
     def compute_loss(self,
-             model: _ModelBuildingBase,
-             observation_test_points,
-             observations_test,
-             observation_index_points,
-             observations) -> float:
+                     model: _ModelBuildingBase,
+                     observation_test_points,
+                     observations_test,
+                     observation_index_points,
+                     observations) -> float:
         ''' predicts loss of the model (the model may be changed) '''
         pass
 
     def fit_model(self,
-            model: _ModelBuildingBase,
-            observation_index_points,
-            observations) -> _ModelBuildingBase:
+                  model: _ModelBuildingBase,
+                  observation_index_points,
+                  observations) -> _ModelBuildingBase:
         ''' fits the model '''
         if model.observation_index_points is not None and \
            model.observations is not None and \
@@ -222,14 +241,14 @@ class _ModelTrainingBase(metaclass=ABCMeta):
         return KFold(
             n_splits=min(self.FOLDS, len(X)),
             shuffle=True,
-            random_state=self.RANDOM_STATE
+            random_state=self.random_state
         )
 
     @abstractmethod
     def _fit_model(self,
-             model: _ModelBuildingBase,
-             observation_index_points,
-             observations) -> _ModelBuildingBase:
+                   model: _ModelBuildingBase,
+                   observation_index_points,
+                   observations) -> _ModelBuildingBase:
         ''' fits the model, the model is changed '''
         pass
 
@@ -300,9 +319,10 @@ class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
         return self._compute_loss(observations_test, mean, stddev=stddev)
 
     def compute_loss(self,
-             model: _ModelBuildingBase,
-             observation_index_points,
-             observations) -> float:
+                     model: _ModelBuildingBase,
+                     observation_index_points,  # == X
+                     observations,  # == F
+                     weights) -> float:
         loss_history = []
         folding_method = self._setup_folding(observation_index_points)
 
@@ -342,15 +362,44 @@ class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
 class _GaussianProcessModel:
     ''' gaussian process wihtout known kernel '''
 
-    def __init__(self, parameters: Parameters, kernel_cls):
+    def __init__(self,
+                 parameters: Parameters,
+                 kernel_cls,
+                 random_state: Optional[Union[int, np.random.RandomState]] = None
+                 ):
         self.parameters = parameters
         self.KERNEL_CLS = kernel_cls
-
         self.MODEL_GENERATION_CLS = _ModelBuildingBase.create_class(self.parameters)
         self.MODEL_TRAINING_CLS = _ModelTrainingBase.create_class(self.parameters)
 
-        self.model = self.MODEL_GENERATION_CLS(self.parameters, self.KERNEL_CLS)
-        self.model_training = self.MODEL_TRAINING_CLS(self.parameters)
+        self.random_state = optionally_create_random_state(random_state)
+
+        self.model = self.MODEL_GENERATION_CLS(
+            self.parameters,
+            self.KERNEL_CLS,
+            random_state=self.random_state
+        )
+        self.model_training = self.MODEL_TRAINING_CLS(
+            self.parameters,
+            random_state=self.random_state
+        )
+
+
+    def compute_loss(self, X: XType, F: YType, W: YType):
+        return self.model_training.compute_loss(self.model, X, F, W)
+
+
+class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
+    ''' <model> Gaussian Process with kernel defined in surrogate_model_gp_kernel '''
+
+    def __init__(self,
+                 parameters: Parameters,
+                 random_state: Optional[Union[int, np.random.RandomState]] = None
+                 ):
+        SurrogateModelBase.__init__(self, parameters)
+        # loads the kernel form settings
+        KERNEL_CLS = eval(self.parameters.surrogate_model_gp_kernel)
+        _GaussianProcessModel.__init__(self, parameters, KERNEL_CLS, random_state=random_state)
 
     def _fit(self, X: XType, F: YType, W: YType):
         self.model = self.model_training.fit_model(self.model, X, F)
@@ -366,131 +415,6 @@ class _GaussianProcessModel:
         stddev = gprm.stddev().numpy()
         return mean, stddev
 
-    def _loss(self, X, F):
-        return self.model_training.compute_loss(self.model, X, F)
-
     def df(self) -> int:
         return 0
 
-
-class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
-    def __init__(self, parameters: Parameters):
-        SurrogateModelBase.__init__(self, parameters)
-        # loads the kernel form settings
-        KERNEL_CLS = eval(self.parameters.surrogate_model_gp_kernel)
-        _GaussianProcessModel.__init__(self, parameters, KERNEL_CLS)
-
-
-class _GaussianProcessModelMixtureBase:
-    TRAIN_MAX_MODELS: Optional[int] = None
-    TRAIN_MAX_TIME_S: Optional[int] = None
-
-    def __init__(self, parameters: Parameters) -> None:
-        self.parameters = parameters
-
-        # the selection ...
-        self._building_blocks: List[Type[GP_kernel_concrete_base]] = [
-            MaternFiveHalves,
-            MaternOneHalf,
-            MaternThreeHalves,
-            RationalQuadratic,
-            ExponentiatedQuadratic,
-            ExpSinSquared,
-            Linear,
-            Quadratic,
-            #### #Cubic,
-            #Parabolic,
-            #ExponentialCurve,
-            #Constant,
-        ]
-
-    def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
-        return self._building_blocks
-
-    def _generate_model_space(self):
-        for kernel_cls in self._generate_kernel_space():
-            model = _GaussianProcessModel(self.parameters, kernel_cls)
-            yield model
-
-    def _fit(self, X: XType, F: YType, W: YType):
-        time_start = time.time()
-
-        models = []
-        losses = []
-
-        for model in itertools.islice(
-                self._generate_model_space(), self.TRAIN_MAX_MODELS):
-            loss = model._loss(X, F)
-
-            models.append(model)
-            losses.append(loss)
-
-            if self.TRAIN_MAX_TIME_S:
-                if time.time() - time_start > self.TRAIN_MAX_TIME_S:
-                    break
-
-        best_index = np.nanargmin(losses)
-        self.best_model = models[best_index]
-        return self
-
-    def _predict(self, X: XType) -> YType:
-        return self.best_model._predict(X)
-
-    def _predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
-        return self.best_model._predict_with_confidence(X)
-
-
-class GaussianProcessBasicSelection(_GaussianProcessModelMixtureBase, SurrogateModelBase):
-    def __init__(self, parameters: Parameters):
-        SurrogateModelBase.__init__(self, parameters)
-        _GaussianProcessModelMixtureBase.__init__(self, parameters)
-
-    def df(self):
-        return super().df
-
-    def _fit(self, X: XType, F: YType, W: YType) -> None:
-        return super()._fit(X, F, W)
-
-    def _predict(self, X: XType) -> YType:
-        return super(_GaussianProcessModelMixtureBase, self)._predict(X)
-
-class GaussianProcessBasicAdditiveSelection(GaussianProcessBasicSelection):
-    def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
-        yield from super()._generate_kernel_space()
-        for (a, b) in itertools.combinations_with_replacement(self._building_blocks, 2):
-            if (a, b) in [(Linear, Linear), (Quadratic, Quadratic), ]:
-                continue
-            yield a + b
-
-
-class GaussianProcessBasicMultiplicativeSelection(GaussianProcessBasicSelection):
-    def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
-        yield from super()._generate_kernel_space()
-        for (a, b) in itertools.combinations_with_replacement(self._building_blocks, 2):
-            if (a, b) in [(Linear, Linear), ]:
-                continue
-            yield a * b
-
-
-class GaussianProcessBasicBinarySelection(GaussianProcessBasicSelection):
-    def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
-        yield from super()._generate_kernel_space()
-        for (a, b) in itertools.combinations_with_replacement(self._building_blocks, 2):
-            if (a, b) not in [(Linear, Linear), ]:
-                yield a * b
-            if (a, b) not in [(Linear, Linear), (Quadratic, Quadratic), ]:
-                yield a + b
-
-
-'''
-class GaussianProcessPenalizedAdditiveSelection(GaussianProcessBasicSelection):
-    def penalize_kernel(self, loss, kernel_obj):
-        return super().penalize_kernel(loss, kernel_obj)
-
-    def _predict(self, X: XType) -> YType:
-        return self.best_model._predict(X)
-
-    def _predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
-        return self.best_model._predict_with_confidence(X)
-
-'''
