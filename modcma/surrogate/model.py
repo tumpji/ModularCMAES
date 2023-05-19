@@ -54,6 +54,7 @@ class SurrogateModelBase(metaclass=ABCMeta):
 
     def __init__(self, parameters: Parameters):
         self.parameters = parameters
+        self._fitted = False
 
     def fit(self,
             X: Optional[XType],
@@ -61,7 +62,7 @@ class SurrogateModelBase(metaclass=ABCMeta):
             W: Optional[YType] = None):
         ''' fit the surrogate '''
         if X is None or F is None:
-            self.fitted = False
+            self._fitted = False
             return self
 
         X = normalize_X(X, self.parameters.d)
@@ -72,7 +73,7 @@ class SurrogateModelBase(metaclass=ABCMeta):
         else:
             W = normalize_W(W)
         self._fit(X, F, W)
-        self.fitted = True
+        self._fitted = True
         return self
 
     @abstractmethod
