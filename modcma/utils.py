@@ -260,3 +260,7 @@ def ert(evals, budget):
 
 def normalize_string(s: str):
     return s.lower().replace(' ', '_')
+
+
+def normalize_str_eq(s1: str, s2: str):
+    return normalize_string(s1) == normalize_string(s2)

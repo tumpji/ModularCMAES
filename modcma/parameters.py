@@ -319,8 +319,7 @@ class Parameters(AnnotatedStruct):
 
     #########################################
     # surrogate - strategy
-    # TODO: Kendall
-    surrogate_strategy: ('Unsure', 'Random', 'Kendall', 'DTS') = 'DTS'
+    surrogate_strategy: ('Unsure', 'Random', 'Kendall', 'DTS', None) = 'DTS'
     # TODO: Kendall
     surrogate_strategy_sort_type: (None, 'all', 'evaluated') = None
 
@@ -328,6 +327,12 @@ class Parameters(AnnotatedStruct):
     # >     [Random Strategy]
     #       minimum fraction of actual population to evaluate by the obj. func.
     surrogate_strategy_Random_eval_relative: float = 0.5
+
+    # >     [Doubly Trained Surrogate Strategy]
+
+    # TODO make it as a function of dimension D
+    surrogate_strategy_DTS_min_samples_for_surrogate: int = 10
+    surrogate_strategy_DTS_n_orig: int = 2
 
     # >     [Kendall Strategy]
     #       minimum fraction of actual population to evaluate by the obj. func.
@@ -376,6 +381,8 @@ class Parameters(AnnotatedStruct):
     #surrogate_model_selection_random_state: int = 42
     surrogate_model_random_state: int = 42
     surrogate_model_selection_randomization: bool = True
+    acquisition_function = "POI"
+    acquisition_poi_xi: float = 1e-3
 
     __modules__ = (
         "active",
