@@ -8,6 +8,7 @@ import numpy as np
 from scipy.stats import kendalltau
 
 from modcma.parameters import Parameters
+from modcma.surrogate.acquisition import get_acquisition
 from modcma.utils import normalize_string
 from .data import SurrogateData_V1
 from .model import SurrogateModelBase, get_model
@@ -59,23 +60,28 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
         X, F, W = self.data.X, self.data.F, self.data.W
         self._model.fit(X, F, W)
 
-    # TODO create Acquisition Function
-    def _get_criterion(self) -> None:
-        if not self._model.fitted:
-            self._train_model()
-        assert self._model.fitted is True
-        return self._model
+    def _shift_values_to_minimum(self, F_pred) -> YType:
+        min_true = self._get_current_minimum()
+        min_pred = np.min(F_pred)
+        if min_pred < min_true:
+            return F_pred + (min_true - min_pred)
+        return F_pred
+
+    def _get_current_minimum(self) -> yType:
+        return np.min(self.data.F)
 
     def fitness_func(self, x):
-        ''' evaluate one sample using true objective function
+        """ evaluate one sample using true objective function
         & saves the result in the archive
-        '''
+        """
+
         f = self.modcma.fitness_func(x)
         self.data.push(x, f)
         return f
 
     def apply_sort(self, n):
-        ''' sorts data in the archive acording to settings '''
+        """ sorts data in the archive acording to settings """
+
         if self.parameters.surrogate_strategy_sort_type is None:
             return
         elif self.parameters.surrogate_strategy_sort_type == 'all':
@@ -87,21 +93,17 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
                 "Cannot find an implementation for \
                 'surrogate_strategy_sort_type'")
 
-    def shift_values_to_minimum(self, F_pred):
-        min_true = np.min(self.data.F)
-        min_pred = np.min(F_pred)
-        if min_pred < min_true:
-            return F_pred + (min_true - min_pred)
-        return F_pred
-
-    @abstractmethod
-    def __call__(self,
-                 X: XType,
-                 sort: Union[int, bool] = True,
-                 prune: bool = False
-                 ) -> YType:
+    def true_obj_eval(
+            self,
+            X: XType,
+            sort: Union[int, bool] = True,
+            prune: bool = False
+    ) -> YType:
         """ Evaluates all samples using true objective function """
+
         F = np.empty(len(X), yType)
+
+        # TODO optimize to eval without iteration
         for i in range(len(X)):
             F[i] = self.fitness_func(X[i])
 
@@ -115,6 +117,17 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
             self.data.prune()
 
         return F
+
+    @abstractmethod
+    def __call__(
+            self,
+            X: XType,
+            sort: Union[int, bool] = True,
+            prune: bool = False
+    ) -> YType:
+        """ Evaluates all samples using true objective function """
+
+        return self.true_obj_eval(X, sort, prune)
 
     @classmethod
     def name(cls) -> str:
@@ -159,7 +172,7 @@ class Random_Strategy(SurrogateStrategyBase):
         F[sample] = Ftrue
         F[not_sample] = Ffalse
 
-        shifted_F = self.shift_values_to_minimum(F)
+        shifted_F = self._shift_values_to_minimum(F)
         return shifted_F
 
 
@@ -168,18 +181,17 @@ class DoubleTrainedStrategy(SurrogateStrategyBase):
     StrategyName = 'DTS'
 
     def __init__(self, modcma: ModularCMAES):
-        # TODO move to paramaters
-        self.min_samples_for_surrogate = 10
+        super().__init__(modcma)
 
+        self.min_samples_for_surrogate = self.parameters.surrogate_strategy_DTS_min_samples_for_surrogate
+        self.n_orig = self.parameters.surrogate_strategy_DTS_n_orig
+
+        self.acquisition_func = get_acquisition(self.parameters)
         super().__init__(modcma)
 
     def __call__(self, X: XType) -> YType:
-
         if self.data.X is None or len(self.data.X) < self.min_samples_for_surrogate:
-            return super().__call__(X)
-
-        if np.random.rand() > 0.5:
-            return super().__call__(X)
+            return self.true_obj_eval(X)
 
         # 1. predict y and var using current model
         # 2. sort results by criterion C (eg PoI)
@@ -188,22 +200,31 @@ class DoubleTrainedStrategy(SurrogateStrategyBase):
         # 5. (pop_size - n_orig) predicted by retrained model
 
         # 1. predict y and var using current model
-        self._clear_model()
         model = self._get_model()
         y, var = model.predict_with_confidence(X)
 
         # 2. sort results by criterion C (eg PoI)
-        # 2.a calculate criterion C
-        self._get_criterion()
-        # TODO np.argsort
+        std = np.sqrt(var)
+        cur_min = self._get_current_minimum()
+        criterion = self.acquisition_func.calculate(X, y, std, cur_min)
+        # argsort descending
+        order_by_c = np.argsort(- criterion)
 
-        # surrogate
+        # 3. most n_orig uncertain by criterion C points are true-evaluated
+        selected_true = order_by_c[:self.n_orig]
+        selected_model = order_by_c[self.n_orig:]
+        F = np.empty(len(X))
+        F[selected_true] = self.true_obj_eval(X[selected_true])
+
+        # 4. retrain model with additional n_orig true-evaluated points
         self._clear_model()
         model = self._get_model()
-        Fsurrogate = model.predict(X)
-        self._clear_model()
 
-        shifted_F = self.shift_values_to_minimum(Fsurrogate)
+        # 5. (pop_size - n_orig) predicted by retrained model
+        F_model = model.predict(X[selected_model])
+        F[selected_model] = F_model
+
+        shifted_F = self._shift_values_to_minimum(F)
         return shifted_F
 
 
