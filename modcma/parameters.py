@@ -361,7 +361,7 @@ class Parameters(AnnotatedStruct):
     surrogate_model_lq_margin: float = 1.1
 
     # surrogate -  models
-    surrogate_model: ('Linear', 'Quadratic', 'QuadraticPure', 'QuadraticInteraction', 'LQ', 'GP') = 'Quadratic'
+    surrogate_model: ('Linear', 'Quadratic', 'QuadraticPure', 'QuadraticInteraction', 'LQ', 'GP') = 'Linear'
     surrogate_model_gp_kernel = 'Linear'
     surrogate_model_gp_noisy_samples: bool = True
 

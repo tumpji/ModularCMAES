@@ -1,18 +1,17 @@
-
 import unittest
-
 from modcma.surrogate.gp_kernels import *
-
-
 
 for kernel in basic_kernels + functor_kernels:
     locals()[kernel.__name__] = kernel
 
+
 class Mock2:
     d = 2
 
+
 class Mock5:
     d = 5
+
 
 class TestKernels(unittest.TestCase):
     def test_dof(self):
@@ -116,6 +115,7 @@ class TestsUID(unittest.TestCase):
         k = Quadratic + MaternOneHalf + Linear
         self.assertEqual(k._uid, (('Linear',), ('MaternOneHalf',), ('Quadratic',)))
 
+
 class TestsUID_mul(unittest.TestCase):
     def testLL(self):
         k = Linear * Linear
@@ -174,11 +174,13 @@ class TestsUID_mul(unittest.TestCase):
             ('Linear', 'Quadratic'),
         ))
 
+
 @unittest.skip('The output is in the question ...')
 class TestsUID_functor(unittest.TestCase):
     def test_L(self):
         k = FeatureScaled(Linear)
         self.assertTrue(False)
+
 
 class Tests_distance_jaccard(unittest.TestCase):
     def test_LL(self):
@@ -204,6 +206,7 @@ class Tests_distance_jaccard(unittest.TestCase):
         a = Linear * MaternOneHalf
         b = Linear + MaternOneHalf
         self.assertAlmostEqual(kernel_similarity_measure_jaccard(a, b), 0.0)
+
 
 class Tests_distance_matching(unittest.TestCase):
     def test_LL(self):
