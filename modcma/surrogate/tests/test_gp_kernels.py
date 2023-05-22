@@ -2,7 +2,6 @@
 import unittest
 
 from modcma.surrogate.gp_kernels import *
-from modcma.surrogate.gp_basic_selection import *
 
 
 

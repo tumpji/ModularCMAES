@@ -10,9 +10,9 @@ from scipy.stats import kendalltau
 from modcma.parameters import Parameters
 from modcma.surrogate.acquisition import get_acquisition
 from modcma.utils import normalize_string
-from .data import SurrogateData_V1
-from .model import SurrogateModelBase, get_model
-from ..typing_utils import XType, YType, yType
+from modcma.surrogate.data import SurrogateData_V1
+from modcma.typing_utils import XType, YType, yType
+from modcma.surrogate.regression_models.model import SurrogateModelBase, get_model
 
 if TYPE_CHECKING:
     from ..modularcmaes import ModularCMAES

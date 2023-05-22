@@ -1,9 +1,5 @@
 from abc import abstractmethod, ABCMeta
-from functools import cache
-from typing import Tuple, Optional, Type, List, Generator, Union
-import operator
-import itertools
-import time
+from typing import Tuple, Optional, Type, Union
 import copy
 from collections import defaultdict
 
@@ -12,10 +8,10 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from sklearn.model_selection import KFold, LeaveOneOut
+from sklearn.model_selection import KFold
 
 from modcma.typing_utils import XType, YType
-from modcma.surrogate.model import SurrogateModelBase
+from modcma.surrogate.regression_models.model import SurrogateModelBase
 from modcma.parameters import Parameters
 
 import modcma.surrogate.losses as losses

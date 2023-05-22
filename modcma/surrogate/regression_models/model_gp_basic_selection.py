@@ -8,8 +8,8 @@ import numpy as np
 
 from modcma.parameters import Parameters
 from modcma.typing_utils import XType, YType
-from modcma.surrogate.model import SurrogateModelBase
-from modcma.surrogate.model_gp import _GaussianProcessModel
+from modcma.surrogate.regression_models.model import SurrogateModelBase
+from modcma.surrogate.regression_models.model_gp import _GaussianProcessModel
 
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
