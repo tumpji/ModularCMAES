@@ -8,6 +8,7 @@ tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 
 from modcma.surrogate.model_gp import *
+from modcma.surrogate.model_gp_basic_selection import *
 
 import unittest
 import math

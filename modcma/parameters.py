@@ -379,7 +379,8 @@ class Parameters(AnnotatedStruct):
     surrogate_model_selection_max_models: Optional[int] = None
     surrogate_model_selection_max_seconds: Optional[int] = None
     #surrogate_model_selection_random_state: int = 42
-    surrogate_model_random_state: int = 42
+
+    surrogate_model_selection_random_state: int = 42
     surrogate_model_selection_randomization: bool = True
     acquisition_function = "POI"
     acquisition_poi_xi: float = 1e-3

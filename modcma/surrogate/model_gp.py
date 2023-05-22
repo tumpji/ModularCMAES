@@ -385,22 +385,11 @@ class _GaussianProcessModel:
             random_state=self.random_state
         )
 
-
     def compute_loss(self, X: XType, F: YType, W: YType):
         return self.model_training.compute_loss(self.model, X, F, W)
 
-
-class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
-    ''' <model> Gaussian Process with kernel defined in surrogate_model_gp_kernel '''
-
-    def __init__(self,
-                 parameters: Parameters,
-                 random_state: Optional[Union[int, np.random.RandomState]] = None
-                 ):
-        SurrogateModelBase.__init__(self, parameters)
-        # loads the kernel form settings
-        KERNEL_CLS = eval(self.parameters.surrogate_model_gp_kernel)
-        _GaussianProcessModel.__init__(self, parameters, KERNEL_CLS, random_state=random_state)
+    def df(self) -> int:
+        return 0
 
     def _fit(self, X: XType, F: YType, W: YType):
         self.model = self.model_training.fit_model(self.model, X, F)
@@ -416,6 +405,18 @@ class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
         stddev = gprm.stddev().numpy()
         return mean, stddev
 
-    def df(self) -> int:
-        return 0
+
+class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
+    ''' <model> Gaussian Process with kernel defined in surrogate_model_gp_kernel '''
+
+    def __init__(self,
+                 parameters: Parameters,
+                 random_state: Optional[Union[int, np.random.RandomState]] = None
+                 ):
+        SurrogateModelBase.__init__(self, parameters)
+        # loads the kernel form settings
+        KERNEL_CLS = eval(self.parameters.surrogate_model_gp_kernel)
+        _GaussianProcessModel.__init__(self, parameters, KERNEL_CLS, random_state=random_state)
+
+
 

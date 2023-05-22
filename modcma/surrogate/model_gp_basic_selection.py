@@ -1,29 +1,19 @@
 from abc import abstractmethod, ABCMeta
-from functools import cache
 from typing import Tuple, Optional, Type, List, Generator, Any
-import operator
 from dataclasses import field, dataclass
 import itertools
 import time
-import copy
-from collections import defaultdict
 
 import numpy as np
 
-import tensorflow as tf
-import tensorflow_probability as tfp
-
-from sklearn.model_selection import KFold, LeaveOneOut
-
+from modcma.parameters import Parameters
 from modcma.typing_utils import XType, YType
 from modcma.surrogate.model import SurrogateModelBase
-from modcma.parameters import Parameters
-
-import modcma.surrogate.losses as losses
-
+from modcma.surrogate.model_gp import _GaussianProcessModel
 
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
+
 for k in basic_kernels + functor_kernels:
     locals()[k.__name__] = k
 
@@ -41,9 +31,6 @@ Parabolic: Type[GP_kernel_concrete_base]
 ExponentialCurve: Type[GP_kernel_concrete_base]
 Constant: Type[GP_kernel_concrete_base]
 
-tfb = tfp.bijectors
-tfd = tfp.distributions
-psd_kernels = tfp.math.psd_kernels
 
 
 # class _GaussianProcessModelMixtureBase:
@@ -167,7 +154,7 @@ class GaussianProcessBasicBinarySelection(_GaussianProcessModelSelectionBase):
 # ##############################################################################
 
 
-class GaussianProcessGreedySearch(_GaussianProcessModelSearchBase):
+class GaussianProcessGreedySearch(_GaussianProcessModelSelectionBase):
     ''' Expands the best node (based on the loss)
         The limit is:
             a) the best node is already expanded
@@ -283,6 +270,4 @@ class GaussianProcessHeuristic(GaussianProcessGreedySearch):
         all_nodes.sort()
         best_state = all_nodes[0].kernel
         return best_state if best_state is not None else Constant
-
-
 
