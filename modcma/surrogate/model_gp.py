@@ -65,7 +65,6 @@ def create_positive_variable(default, dtype=tf.float64, name=None):
 def create_constant(default, dtype=tf.float64, name: Optional[str] = None):
     return tf.constant(default, dtype=dtype, name=name)
 
-
 def optionally_create_random_state(
         random_state: Optional[Union[int, np.random.RandomState]],
         default_int: Optional[int] = None
