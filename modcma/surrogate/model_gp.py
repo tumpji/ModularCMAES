@@ -255,8 +255,10 @@ class _ModelTrainingBase(metaclass=ABCMeta):
 class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
     ''' implements maximum likelihood training for GP '''
 
-    def __init__(self, parameters: Parameters):
-        super().__init__(parameters)
+    def __init__(self,
+                 parameters: Parameters,
+                 random_state=None):
+        super().__init__(parameters, random_state=random_state)
 
         self.LEARNING_RATE = self.parameters.surrogate_model_gp_learning_rate
         self.MAX_ITERATIONS = self.parameters.surrogate_model_gp_max_iterations
