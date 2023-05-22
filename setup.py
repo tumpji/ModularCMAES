@@ -26,4 +26,9 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    tests_require=[
+        'pytest',
+        'pytest-runner',
+        'pytest-xdist'
+    ]
 )
