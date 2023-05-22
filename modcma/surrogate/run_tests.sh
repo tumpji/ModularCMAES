@@ -8,5 +8,5 @@ then
 fi
 
 
-$PYTHON -m pytest -v
+$PYTHON -m pytest -v --numprocesses=auto
 
