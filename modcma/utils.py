@@ -264,3 +264,8 @@ def normalize_string(s: str):
 
 def normalize_str_eq(s1: str, s2: str):
     return normalize_string(s1) == normalize_string(s2)
+
+
+def all_subclasses(cls):
+    return set(cls.__subclasses__()).union(
+        [s for c in cls.__subclasses__() for s in all_subclasses(c)])

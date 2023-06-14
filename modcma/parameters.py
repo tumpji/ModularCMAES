@@ -4,7 +4,6 @@ import pickle
 import warnings
 from collections import deque
 from typing import Generator, TypeVar, Optional
-import sympy as smp
 
 import numpy as np
 from scipy import linalg
@@ -19,7 +18,6 @@ from .sampling import (
     Sobol,
     Halton
 )
-
 
 
 class Parameters(AnnotatedStruct):
@@ -296,7 +294,7 @@ class Parameters(AnnotatedStruct):
     # surrogate - data
     #   WEIGHTING
     #       type of weighting for models that are capable ...
-    surrogate_data_weighting: ('linear', ) = 'linear'
+    surrogate_data_weighting: ('linear',) = 'linear'
     #       minimum weight
     surrogate_data_min_weight: float = 1.
     #       maximum weight
@@ -315,7 +313,6 @@ class Parameters(AnnotatedStruct):
     #       models are trained in mahalanobis space
     # TODO: fix mahalanobis transformation and enable
     surrogate_data_mahalanobis_space: bool = False
-
 
     #########################################
     # surrogate - strategy
@@ -354,14 +351,13 @@ class Parameters(AnnotatedStruct):
 
     surrogate_strategy_Kendall_evaluation_selection: ('random', 'modelfitness') = 'random'
 
-
     #########################################
     # surrogate - model
     #       minimum number of samples to use (*df) for non-linear models only
     surrogate_model_lq_margin: float = 1.1
 
     # surrogate -  models
-    surrogate_model: ('Linear', 'Quadratic', 'QuadraticPure', 'QuadraticInteraction', 'LQ', 'GP') = 'Linear'
+    surrogate_model: ('Linear', 'Quadratic', 'QuadraticPure', 'QuadraticInteraction', 'LQ', 'GP', 'DGP') = 'Linear'
     surrogate_model_gp_kernel = 'Linear'
     surrogate_model_gp_noisy_samples: bool = True
 
@@ -378,7 +374,7 @@ class Parameters(AnnotatedStruct):
     # search for best kernel
     surrogate_model_selection_max_models: Optional[int] = None
     surrogate_model_selection_max_seconds: Optional[int] = None
-    #surrogate_model_selection_random_state: int = 42
+    # surrogate_model_selection_random_state: int = 42
 
     surrogate_model_selection_random_state: int = 42
     surrogate_model_selection_randomization: bool = True
@@ -513,12 +509,12 @@ class Parameters(AnnotatedStruct):
             )
         elif self.weights_option == "1/2^lambda":
             base = np.float64(2)
-            positive = self.mu / (base ** np.arange(1, self.mu + 1)) + ( # "self.mu /" should be "1 /"
-                (1 / (base ** self.mu)) / self.mu
+            positive = self.mu / (base ** np.arange(1, self.mu + 1)) + (  # "self.mu /" should be "1 /"
+                    (1 / (base ** self.mu)) / self.mu
             )
             n = self.lambda_ - self.mu
             negative = (1 / (base ** np.arange(1, n + 1)) + (
-                (1 / (base ** n)) / n
+                    (1 / (base ** n)) / n
             ))[::-1] * -1
             self.weights = np.append(positive, negative)
         else:
@@ -534,20 +530,20 @@ class Parameters(AnnotatedStruct):
         self.pweights = self.pweights / self.pweights.sum()
         self.c1 = self.c1 or 2 / ((self.d + 1.3) ** 2 + self.mueff)
         self.cmu = self.cmu or min(1 - self.c1, (2 * (
-            (self.mueff - 2 + (1 / self.mueff))
-            / ((self.d + 2) ** 2 + (2 * self.mueff / 2))
+                (self.mueff - 2 + (1 / self.mueff))
+                / ((self.d + 2) ** 2 + (2 * self.mueff / 2))
         )))
 
         amu_neg = 1 + (self.c1 / self.mu)
         amueff_neg = 1 + ((2 * mueff_neg) / (self.mueff + 2))
         aposdef_neg = (1 - self.c1 - self.cmu) / (self.d * self.cmu)
         self.nweights = (
-            min(amu_neg, amueff_neg, aposdef_neg) / np.abs(self.nweights).sum()
-        ) * self.nweights
+                                min(amu_neg, amueff_neg, aposdef_neg) / np.abs(self.nweights).sum()
+                        ) * self.nweights
         self.weights = np.append(self.pweights, self.nweights)
 
         self.cc = self.cc or (
-            (4 + (self.mueff / self.d)) / (self.d + 4 + (2 * self.mueff / self.d))
+                (4 + (self.mueff / self.d)) / (self.d + 4 + (2 * self.mueff / self.d))
         )
 
         self.cs = self.cs or {
@@ -561,7 +557,7 @@ class Parameters(AnnotatedStruct):
         }[self.step_size_adaptation]
 
         self.damps = 1.0 + (
-            2.0 * max(0.0, np.sqrt((self.mueff - 1) / (self.d + 1)) - 1) + self.cs
+                2.0 * max(0.0, np.sqrt((self.mueff - 1) / (self.d + 1)) - 1) + self.cs
         )
 
     def init_dynamic_parameters(self) -> None:
@@ -570,7 +566,7 @@ class Parameters(AnnotatedStruct):
         Examples of such parameters are the Covariance matrix C and its
         eigenvectors and the learning rate sigma.
         """
-        self.sigma = np.float64(self.sigma0) * (self.ub[0,0] - self.lb[0,0])
+        self.sigma = np.float64(self.sigma0) * (self.ub[0, 0] - self.lb[0, 0])
         if hasattr(self, "m") or self.x0 is None:
             self.m = np.float64(np.random.uniform(self.lb, self.ub, (self.d, 1)))
         else:
@@ -676,26 +672,26 @@ class Parameters(AnnotatedStruct):
 
         dhs = (1 - self.hs) * self.cc * (2 - self.cc)
         old_C = (
-            1 - (self.c1 * dhs) - self.c1 - (self.cmu * self.pweights.sum())
-        ) * self.C
+                        1 - (self.c1 * dhs) - self.c1 - (self.cmu * self.pweights.sum())
+                ) * self.C
 
         if self.active:
             weights = self.weights[::].copy()
             weights = weights[: self.population.y.shape[1]]
             weights[weights < 0] = weights[weights < 0] * (
-                self.d / np.power(
-                    np.linalg.norm(
-                        self.inv_root_C @ self.population.y[:, weights < 0], axis=0
-                    ), 2
-                )
+                    self.d / np.power(
+                np.linalg.norm(
+                    self.inv_root_C @ self.population.y[:, weights < 0], axis=0
+                ), 2
+            )
             )
 
             rank_mu = self.cmu * (weights * self.population.y @ self.population.y.T)
         else:
             rank_mu = self.cmu * (
-                self.pweights
-                * self.population.y[:, : self.mu]
-                @ self.population.y[:, : self.mu].T
+                    self.pweights
+                    * self.population.y[:, : self.mu]
+                    @ self.population.y[:, : self.mu].T
             )
         self.C = old_C + rank_one + rank_mu
 
@@ -706,9 +702,9 @@ class Parameters(AnnotatedStruct):
         are reset.
         """
         if (
-            np.isinf(self.C).any()
-            or np.isnan(self.C).any()
-            or (not 1e-16 < self.sigma < 1e6)
+                np.isinf(self.C).any()
+                or np.isnan(self.C).any()
+                or (not 1e-16 < self.sigma < 1e6)
         ):
             self.init_dynamic_parameters()
         else:
@@ -725,16 +721,16 @@ class Parameters(AnnotatedStruct):
         """Method to adapt the evolution paths ps and pc."""
         self.dm = (self.m - self.m_old) / self.sigma
         self.ps = (1 - self.cs) * self.ps + (
-            np.sqrt(self.cs * (2 - self.cs) * self.mueff) * self.inv_root_C @ self.dm
+                np.sqrt(self.cs * (2 - self.cs) * self.mueff) * self.inv_root_C @ self.dm
         ) * self.ps_factor
 
         self.hs = (
-            np.linalg.norm(self.ps)
-            / np.sqrt(1 - np.power(1 - self.cs, 2 * (self.used_budget / self.lambda_)))
-        ) < (1.4 + (2 / (self.d + 1))) * self.chiN
+                          np.linalg.norm(self.ps)
+                          / np.sqrt(1 - np.power(1 - self.cs, 2 * (self.used_budget / self.lambda_)))
+                  ) < (1.4 + (2 / (self.d + 1))) * self.chiN
 
         self.pc = (1 - self.cc) * self.pc + (
-            self.hs * np.sqrt(self.cc * (2 - self.cc) * self.mueff)
+                self.hs * np.sqrt(self.cc * (2 - self.cc) * self.mueff)
         ) * self.dm
 
     def perform_local_restart(self) -> None:
@@ -775,9 +771,9 @@ class Parameters(AnnotatedStruct):
     def threshold(self) -> None:
         """Calculate threshold for mutation, used in threshold convergence."""
         return (
-            self.init_threshold
-            * self.diameter
-            * ((self.budget - self.used_budget) / self.budget) ** self.decay_factor
+                self.init_threshold
+                * self.diameter
+                * ((self.budget - self.used_budget) / self.budget) ** self.decay_factor
         )
 
     @property
@@ -861,7 +857,6 @@ class Parameters(AnnotatedStruct):
             pickle.dump(self, f)
         self.sampler = sampler
 
-
     def record_statistics(self) -> None:
         """Method for recording metadata."""
         # if self.local_restart or self.compute_termination_criteria:
@@ -893,13 +888,13 @@ class Parameters(AnnotatedStruct):
                 else {
                     "max_iter": (time_since_restart > self.max_iter),
                     "equalfunvalues": (
-                        len(best_fopts) > self.nbin
-                        and np.ptp(best_fopts[-self.nbin:]) == 0
+                            len(best_fopts) > self.nbin
+                            and np.ptp(best_fopts[-self.nbin:]) == 0
                     ),
                     "flat_fitness": (
-                        time_since_restart > self.flat_fitnesses.maxlen
-                        and len(self.flat_fitnesses) == self.flat_fitnesses.maxlen
-                        and np.sum(self.flat_fitnesses) > (self.d / 3)
+                            time_since_restart > self.flat_fitnesses.maxlen
+                            and len(self.flat_fitnesses) == self.flat_fitnesses.maxlen
+                            and np.sum(self.flat_fitnesses) > (self.d / 3)
                     ),
                     "tolx": np.all(
                         (np.append(self.pc.T, diag_C) * d_sigma)
@@ -909,8 +904,8 @@ class Parameters(AnnotatedStruct):
                     "conditioncov": np.linalg.cond(self.C) > self.condition_cov,
                     "noeffectaxis": np.all(
                         (
-                            1 * self.sigma * np.sqrt(self.D[_t, 0]) * self.B[:, _t]
-                            + self.m
+                                1 * self.sigma * np.sqrt(self.D[_t, 0]) * self.B[:, _t]
+                                + self.m
                         )
                         == self.m
                     ),
@@ -918,13 +913,13 @@ class Parameters(AnnotatedStruct):
                         (0.2 * self.sigma * np.sqrt(diag_C) + self.m) == self.m
                     ),
                     "stagnation": (
-                        time_since_restart > self.n_stagnation
-                        and (
-                            np.median(best_fopts[-int(0.3 * time_since_restart):])
-                            >= np.median(best_fopts[: int(0.3 * time_since_restart)])
-                            and np.median(median_fitnesses[-int(0.3 * time_since_restart):])
-                            >= np.median(median_fitnesses[: int(0.3 * time_since_restart)])
-                        )
+                            time_since_restart > self.n_stagnation
+                            and (
+                                    np.median(best_fopts[-int(0.3 * time_since_restart):])
+                                    >= np.median(best_fopts[: int(0.3 * time_since_restart)])
+                                    and np.median(median_fitnesses[-int(0.3 * time_since_restart):])
+                                    >= np.median(median_fitnesses[: int(0.3 * time_since_restart)])
+                            )
                     ),
                 }
             )
@@ -970,7 +965,7 @@ class Parameters(AnnotatedStruct):
             warnings.warn("Modification of population size is disabled when local restart startegies are used")
             return
         self.lambda_ = lambda_new
-        self.mu = lambda_new//2
+        self.mu = lambda_new // 2
         self.init_selection_parameters()
         self.init_adaptation_parameters()
         self.init_local_restart_parameters()
@@ -1036,5 +1031,3 @@ class BIPOPParameters(AnnotatedStruct):
 
         if self.lambda_small % 2 != 0:
             self.lambda_small += 1
-
-

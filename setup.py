@@ -19,7 +19,10 @@ setuptools.setup(
     install_requires=[
         'numpy',
         'scipy',
-        'ioh'
+        'ioh',
+        'tensorflow',
+        'scikit-learn',
+        'dgpsi',
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
