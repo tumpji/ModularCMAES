@@ -51,13 +51,13 @@ class ProbabilityOfImprovement(AcquisitionFunctionBase):
 
 
 def get_acquisition(parameters: Parameters) -> AcquisitionFunctionBase:
-    acq_func_classes = AcquisitionFunctionBase.__subclasses__()
-
     acq_name_to_find = normalize_string(parameters.acquisition_function)
+
+    acq_func_classes = AcquisitionFunctionBase.__subclasses__()
     for acq_cls in acq_func_classes:
         if normalize_str_eq(acq_cls.AcquisitionName, acq_name_to_find):
             acq_cls: Type[AcquisitionFunctionBase]
             return acq_cls(parameters)
 
     raise NotImplementedError(
-        f'Cannot find model with name "{parameters.surrogate_model}"')
+        f'Cannot find acquisition function with name "{parameters.acquisition_function}"')

@@ -16,9 +16,11 @@ from sklearn.linear_model import LinearRegression
 
 from sklearn.base import BaseEstimator, TransformerMixin
 
+from modcma.surrogate.regression_models import *
+
 from modcma.parameters import Parameters
 from modcma.typing_utils import XType, YType
-from modcma.utils import normalize_string
+from modcma.utils import normalize_string, normalize_str_eq, all_subclasses
 
 
 ####################
@@ -89,8 +91,14 @@ class SurrogateModelBase(metaclass=ABCMeta):
         return np.tile(np.nan, (len(X), 1))
 
     def predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
+        F, variance = self._predict_with_confidence(X)
+        F = normalize_F(F)
+        variance = normalize_F(variance)
+        return F, variance
+
+    def _predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
         F = self.predict(X)
-        return (F, np.tile(np.nan, F.shape))
+        return F, np.tile(np.nan, F.shape)
 
     @property
     def fitted(self) -> bool:
@@ -246,14 +254,14 @@ class Quadratic_SurrogateModel(SklearnSurrogateModelBase):
 
 
 def get_model(parameters: Parameters) -> SurrogateModelBase:
-    to_find = normalize_string(parameters.surrogate_model)
-    cls_members = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+    sur_model_to_find = normalize_string(parameters.surrogate_model)
 
-    for (model_name, model) in cls_members:
-        if issubclass(model, SurrogateModelBase):
-            model: Type[SurrogateModelBase]
-            if model.name() == to_find:
-                return model(parameters)
+    sur_model_classes = all_subclasses(SurrogateModelBase)
+    for sur_model_cls in sur_model_classes:
+        if normalize_str_eq(sur_model_cls.ModelName, sur_model_to_find):
+            sur_model_cls: Type[SurrogateModelBase]
+            return sur_model_cls(parameters)
+
     raise NotImplementedError(
         f'Cannot find model with name "{parameters.surrogate_model}"')
 

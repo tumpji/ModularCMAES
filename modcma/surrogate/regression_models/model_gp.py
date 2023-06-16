@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABCMeta
-from typing import Tuple, Optional, Type, Union
+from typing import Tuple, Optional, Type, Union, TYPE_CHECKING
 import copy
 from collections import defaultdict
 
@@ -7,18 +7,20 @@ import numpy as np
 
 import tensorflow as tf
 import tensorflow_probability as tfp
+import dgpsi
 
 from sklearn.model_selection import KFold
 
 from modcma.typing_utils import XType, YType
-from modcma.surrogate.regression_models.model import SurrogateModelBase
 from modcma.parameters import Parameters
 
 import modcma.surrogate.losses as losses
 
-
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
+
+from modcma.surrogate.regression_models.model import SurrogateModelBase
+
 for k in basic_kernels + functor_kernels:
     locals()[k.__name__] = k
 
@@ -39,6 +41,7 @@ Constant: Type[GP_kernel_concrete_base]
 tfb = tfp.bijectors
 tfd = tfp.distributions
 psd_kernels = tfp.math.psd_kernels
+
 
 # import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -61,6 +64,7 @@ def create_positive_variable(default, dtype=tf.float64, name=None):
 def create_constant(default, dtype=tf.float64, name: Optional[str] = None):
     return tf.constant(default, dtype=dtype, name=name)
 
+
 def optionally_create_random_state(
         random_state: Optional[Union[int, np.random.RandomState]],
         default_int: Optional[int] = None
@@ -71,15 +75,16 @@ def optionally_create_random_state(
         return np.random.RandomState(random_state)
     return random_state
 
+
 # ###############################################################################
 # ### MODEL BUILDING COMPOSITION MODELS
 # ###############################################################################
 
 
 class _ModelBuildingBase(metaclass=ABCMeta):
-    ''' given kernel, it creates model based on parameters
+    """ given kernel, it creates model based on parameters
         - adds makes noisy / noiseless model
-    '''
+    """
 
     def __init__(self, parameters, kernel_cls, random_state=None):
         self.parameters = parameters
@@ -145,7 +150,7 @@ class _ModelBuilding_Noiseless(_ModelBuildingBase):
                              observation_index_points=None,
                              observations=None):
         if observation_index_points is None:
-            assert(observations is None)
+            assert (observations is None)
 
             observation_index_points = self.observation_index_points
             observations = self.observations
@@ -179,7 +184,7 @@ class NoFold:
 
 
 class _ModelTrainingBase(metaclass=ABCMeta):
-    ''' provides training and loss prediction '''
+    """ provides training and loss prediction """
 
     def __init__(self,
                  parameters: Parameters,
@@ -201,36 +206,36 @@ class _ModelTrainingBase(metaclass=ABCMeta):
                      observations_test,
                      observation_index_points,
                      observations) -> float:
-        ''' predicts loss of the model (the model may be changed) '''
+        """ predicts loss of the model (the model may be changed) """
         pass
 
     def fit_model(self,
                   model: _ModelBuildingBase,
                   observation_index_points,
                   observations) -> _ModelBuildingBase:
-        ''' fits the model '''
+        """ fits the model """
         if model.observation_index_points is not None and \
-           model.observations is not None and \
-           np.array_equal(model.observation_index_points, observation_index_points) and \
-           np.array_equal(model.observations, observations):
+                model.observations is not None and \
+                np.array_equal(model.observation_index_points, observation_index_points) and \
+                np.array_equal(model.observations, observations):
             return model
         # cache miss ...
         return self._fit_model(model, observation_index_points, observations)
 
     def _compute_loss(self, observations, predictions, stddev=None):
-        ''' computes loss given prediction and target values '''
+        """ computes loss given prediction and target values """
         loss_name = self.parameters.surrogate_model_selection_criteria
         loss = losses.get_cls_by_name(loss_name, self.parameters)
         return loss(predictions, observations, stddev=stddev)
 
     def _loss_aggregation_method(self, loss_history) -> float:
-        ''' aggregate losses into one value '''
+        """ aggregate losses into one value """
         if len(loss_history) == 1:
             return loss_history[0]
         return float(np.nanmean(loss_history))
 
     def _setup_folding(self, X):
-        ''' return folding object with .split(X) -> ixd, idx interface '''
+        """ return folding object with .split(X) -> ixd, idx interface """
         if self.FOLDS is None or self.FOLDS <= 0:
             return NoFold()
         return KFold(
@@ -244,12 +249,12 @@ class _ModelTrainingBase(metaclass=ABCMeta):
                    model: _ModelBuildingBase,
                    observation_index_points,
                    observations) -> _ModelBuildingBase:
-        ''' fits the model, the model is changed '''
+        """ fits the model, the model is changed """
         pass
 
 
 class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
-    ''' implements maximum likelihood training for GP '''
+    """ implements maximum likelihood training for GP """
 
     def __init__(self,
                  parameters: Parameters,
@@ -262,7 +267,7 @@ class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
         self.EARLY_STOPPING_PATIENCE = self.parameters.surrogate_model_gp_early_stopping_patience
 
     def _fit_gp(self, model, observations):
-        ''' fits one gp, returns the gp '''
+        """ fits one gp, returns the gp """
         optimizer = tf.optimizers.Adam(learning_rate=self.LEARNING_RATE)
 
         @tf.function
@@ -297,13 +302,13 @@ class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
                            observations,
                            observation_test_points,
                            observations_test):
-        ''' computes loss of one model '''
+        """ computes loss of one model """
         gp = model.build_for_training(observation_index_points, observations)
         self._fit_gp(gp, observations)
 
         train_loss = np.array_equal(observation_index_points,
-                                    observation_test_points)\
-            and np.array_equal(observations, observations_test)
+                                    observation_test_points) \
+                     and np.array_equal(observations, observations_test)
 
         if not train_loss:
             gp = model.build_for_regression(
@@ -342,10 +347,10 @@ class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
         return self._loss_aggregation_method(loss_history)
 
     def _fit_model(self,
-             model: _ModelBuildingBase,
-             observation_index_points,
-             observations) -> _ModelBuildingBase:
-        ''' fits the model, the model is changed '''
+                   model: _ModelBuildingBase,
+                   observation_index_points,
+                   observations) -> _ModelBuildingBase:
+        """ fits the model, the model is changed """
         gp = model.build_for_training(observation_index_points, observations)
         self._fit_gp(gp, observations)
         return model
@@ -357,7 +362,7 @@ class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
 
 
 class _GaussianProcessModel:
-    ''' gaussian process wihtout known kernel '''
+    """ gaussian process wihtout known kernel """
 
     def __init__(self,
                  parameters: Parameters,
@@ -403,7 +408,7 @@ class _GaussianProcessModel:
 
 
 class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
-    ''' <model> Gaussian Process with kernel defined in surrogate_model_gp_kernel '''
+    """ <model> Gaussian Process with kernel defined in surrogate_model_gp_kernel """
 
     def __init__(self,
                  parameters: Parameters,
@@ -415,4 +420,53 @@ class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
         _GaussianProcessModel.__init__(self, parameters, KERNEL_CLS, random_state=random_state)
 
 
+class DeepGaussianProcessStochImp(SurrogateModelBase):
+    ModelName = "DGP"
 
+    def __init__(self, parameters: Parameters):
+        super().__init__(parameters)
+
+        # TODO load from parameters
+
+        self.training_iter = 50
+        self.num_imputations = 100
+        self.prediction_method = "mean_var"
+
+        lay1 = [
+            dgpsi.kernel(length=np.array([1]), name='sexp'),
+            dgpsi.kernel(length=np.array([1]), name='sexp')
+        ]
+        lay2 = [
+            dgpsi.kernel(length=np.array([1]), name='sexp', connect=np.arange(2)),
+            dgpsi.kernel(length=np.array([1]), name='sexp', connect=np.arange(2))
+        ]
+        lay3 = [
+            dgpsi.kernel(length=np.array([1]), name='sexp', scale_est=True, connect=None)
+        ]
+        self.deep_gp_layers = dgpsi.combine(lay1, lay3)
+
+    def _fit(self, X: Optional[XType], F: Optional[YType], W: Optional[YType] = None):
+        if F.ndim == 1:
+            F = np.expand_dims(F, axis=-1)
+        assert F.ndim == 2
+
+        self.model = dgpsi.dgp(X, F, self.deep_gp_layers)
+        self.model.train(N=self.training_iter)
+
+        dgp_layers_est = self.model.estimate()
+        self.emulator = dgpsi.emulator(dgp_layers_est, N=self.num_imputations)
+
+        return self
+
+    def _predict(self, X: XType) -> YType:
+        mean, _ = self._predict_with_confidence(X)
+        return mean
+
+    def _predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
+        mean, variance = self.emulator.predict(x=X, method=self.prediction_method)
+        return mean, variance
+
+    @property
+    def df(self) -> int:
+        # TODO count degree of freedom
+        return 0
