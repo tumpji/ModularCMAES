@@ -20,9 +20,12 @@ setuptools.setup(
         'numpy',
         'scipy',
         'ioh',
-        'tensorflow',
+        'tensorflow-cpu',
+        'tensorflow-probability',
         'scikit-learn',
         'dgpsi',
+        'scipy',
+        'pulp',
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
