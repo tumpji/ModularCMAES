@@ -13,6 +13,7 @@ from .surrogate.strategy import SurrogateStrategyBase
 from .utils import timeit, ert, normalize_string
 
 
+
 class ModularCMAES:
     r"""The main class of the configurable CMA ES continuous optimizer.
 
@@ -443,6 +444,7 @@ def evaluate_bbob(
         instance=1,
         target_precision=1e-8,
         return_optimizer=False,
+        problem_class=None,
         **kwargs,
 ):
     """Helper function to evaluate a ModularCMAES on the BBOB test suite.
@@ -484,12 +486,15 @@ def evaluate_bbob(
     # This speeds up the import, this import is quite slow, so import it lazy here
     # pylint: disable=import-outside-toplevel
     import ioh
+    if problem_class is None:
+        problem_class = ioh.ProblemClass.REAL
 
     evals, fopts = np.array([]), np.array([])
     if seed:
         np.random.seed(seed)
     fitness_func = ioh.get_problem(
-        fid, dimension=dim, instance=instance
+        fid, dimension=dim, instance=instance,
+        problem_class=problem_class
     )
 
     if logging:

@@ -1,6 +1,7 @@
 """Allows the user to call the library as a cli-module."""
 
 from argparse import ArgumentParser
+from ioh import ProblemClass
 
 from .modularcmaes import evaluate_bbob
 
@@ -34,7 +35,7 @@ def main():
         # pylint: disable=exec-used
         exec(arg, None, args)
 
-    evaluate_bbob(**args)
+    evaluate_bbob(**args, problem_class=ProblemClass.BBOB)
 
 
 main()
