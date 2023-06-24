@@ -166,12 +166,21 @@ class SurrogateData_V1(metaclass=ABCMeta):
 
     @property
     def W(self):  # Weight
-        if self.settings.surrogate_data_weighting == 'linear':
+        if self.settings.surrogate_data_weighting == 'constant':
+            return np.ones(self.model_size)
+        elif self.settings.surrogate_data_weighting == 'logarithmic':
+            assert self.settings.surrogate_data_min_weight > 0.
+            assert self.settings.surrogate_data_max_weight > 0.
+            return np.logspace(np.log10(self.settings.surrogate_data_max_weight),
+                               np.log10(self.settings.surrogate_data_min_weight),
+                               num=self.model_size)
+            pass
+        elif self.settings.surrogate_data_weighting == 'linear':
             return np.linspace(self.settings.surrogate_data_min_weight,
                                self.settings.surrogate_data_max_weight,
                                num=self.model_size)
         else:
-            raise NotImplementedError("Couldnt interpret the weight_function")
+            raise NotImplementedError("Couldn't interpret the weight_function")
 
 
 '''

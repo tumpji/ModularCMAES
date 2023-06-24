@@ -294,7 +294,7 @@ class Parameters(AnnotatedStruct):
     # surrogate - data
     #   WEIGHTING
     #       type of weighting for models that are capable ...
-    surrogate_data_weighting: ('linear',) = 'linear'
+    surrogate_data_weighting: ('linear', 'constant', 'logarithmic') = 'linear'
     #       minimum weight
     surrogate_data_min_weight: float = 1.
     #       maximum weight
