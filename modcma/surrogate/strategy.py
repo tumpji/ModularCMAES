@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 from abc import ABCMeta, abstractmethod
 from typing import Union, TYPE_CHECKING
@@ -35,28 +36,32 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
         self._load_strategy_parameters()
 
     def _load_strategy_parameters(self):
-        all_settings = self.parameters.__dict__.keys()
+        """ fills in all surrogate_strategy_{cls.StrategyName}_* parameters as self.* """
         prefix = "surrogate_strategy_" + self.StrategyName + "_"
 
-        def filter_and_take(name, iterable):
-            return map(lambda s: s[len(name):],
-                       filter(lambda s: s.startswith(name), iterable))
-
-        settings_for_this_strategy = filter_and_take(prefix, all_settings)
+        settings_for_this_strategy = ( name[len(prefix):]
+            for name in self.parameters.__dict__.keys()
+            if name.startswith(prefix)
+        )
 
         for name in settings_for_this_strategy:
+            if hasattr(self, name) and getattr(self, name) is not None:
+                logging.warning('Overriden parameter "{name}" in the class {self.__class__}')
             setattr(self, name, getattr(self.parameters, prefix + name))
 
     def _get_model(self) -> SurrogateModelBase:
+        """ returns the model if it is trained do nothing otherwise train the model """
         if not self._model.fitted:
             self._train_model()
         assert self._model.fitted is True
         return self._model
 
     def _clear_model(self) -> None:
+        """ marks the model as not fitted """
         self._model.fitted = False
 
     def _train_model(self) -> None:
+        """ trains the model """
         X, F, W = self.data.X, self.data.F, self.data.W
         self._model.fit(X, F, W)
 
@@ -126,7 +131,6 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
             prune: bool = False
     ) -> YType:
         """ Evaluates all samples using true objective function """
-
         return self.true_obj_eval(X, sort, prune)
 
     @classmethod
@@ -134,16 +138,16 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
         return normalize_string(cls.StrategyName)
 
 
-class Unsure_Strategy(SurrogateStrategyBase):
-    ''' always calls true evaluation '''
+class UnsureStrategy(SurrogateStrategyBase):
+    """ always calls true evaluation """
     StrategyName = 'Unsure'
 
     def __call__(self, X: XType) -> YType:
         return super().__call__(X)
 
 
-class Random_Strategy(SurrogateStrategyBase):
-    ''' randomly use surrogate and true evaluation '''
+class RandomStrategy(SurrogateStrategyBase):
+    """ randomly use surrogate model and true evaluation """
     StrategyName = 'Random'
 
     def __init__(self, modcma: ModularCMAES):
@@ -152,6 +156,8 @@ class Random_Strategy(SurrogateStrategyBase):
 
     def __call__(self, X: XType) -> YType:
         n = int(min(len(X), math.ceil(len(X) * self.eval_relative)))
+
+        # sampling process
         sample = np.arange(len(X))
         np.random.shuffle(sample)
         sample, not_sample = sample[:n], sample[n:]
@@ -161,13 +167,14 @@ class Random_Strategy(SurrogateStrategyBase):
         # objective function
         Xtrue = X[sample]
         Ftrue = super().__call__(Xtrue)
+
         # surrogate
         self._clear_model()
         model = self._get_model()
         Xfalse = X[not_sample]
         Ffalse = model.predict(Xfalse)
 
-        # putting it altogether
+        # merge info
         F = np.empty(shape=(len(X)), dtype=yType)
         F[sample] = Ftrue
         F[not_sample] = Ffalse
@@ -177,7 +184,7 @@ class Random_Strategy(SurrogateStrategyBase):
 
 
 class DoubleTrainedStrategy(SurrogateStrategyBase):
-    ''' Double Trained Strategy '''
+    """ Double Trained Strategy """
     StrategyName = 'DTS'
 
     def __init__(self, modcma: ModularCMAES):
@@ -228,8 +235,8 @@ class DoubleTrainedStrategy(SurrogateStrategyBase):
         return shifted_F
 
 
-class Kendall_Strategy(SurrogateStrategyBase):
-    ''' a '''
+class KendallStrategy(SurrogateStrategyBase):
+    """ a """
     StrategyName = 'Kendall'
 
     def __init__(self, modcma: ModularCMAES):

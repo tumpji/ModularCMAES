@@ -291,26 +291,39 @@ class Parameters(AnnotatedStruct):
     halton: TypeVar("Halton") = None
 
     #########################################
-    # surrogate - data
-    #   WEIGHTING
-    #       type of weighting for models that are capable ...
-    surrogate_data_weighting: ('linear', 'constant', 'logarithmic') = 'linear'
-    #       minimum weight
+    #   WEIGHTING of the surrogate's training data
+    #     Some samples can be considered more important than others
+    #     to reflect this idea, weighting of samples is implemented.
+    # We provide following types of weighting:
+    #  - constant - no weighting is implemented
+    #  - linear - the importance is linearly decreasing
+    #  - logarithmic - the importance decreases quickly
+    surrogate_data_weighting: ('constant', 'linear', 'logarithmic') = 'linear'
+    # Unless the 'conctant' weighting is selected the minimum (the least important sample) has the weight of
     surrogate_data_min_weight: float = 1.
-    #       maximum weight
+    # Unless the 'conctant' weighting is selected the maximum (the most important sample) has the weight of
     surrogate_data_max_weight: float = 20.
-    #       what is the measure to evaluate what is better 
-    #           time - do not sort
-    #           lq - sort based on lowest value
-    #           mahalanobis - sort based on distance to the population mean
+    # The importance of weighting is determined by the
+    #  - time - most recent samples are prioritized
+    #  - lq - sort based on lowest value
+    #  - mahalanobis - sort based on distance to the population mean
     surrogate_data_sorting: ('time', 'lq', 'mahalanobis') = 'time'
 
-    #       maximum number of points to be stored
-    surrogate_data_max_size: int = None
-    #       maximum number of points saved in queue *(dof)
-    surrogate_data_max_relative_size: int = None
+    #########################################
+    #   FILTERING of the surrogate's training data
+    #     Some models are hard to train with more data.
+    #     To reduce the effect of algorithmic complexity, some data could be not used from training.
+    #     The maximum number of samples used for training of the surrogate can be represented in different ways: 
+    # The absolute value
+    surrogate_data_max_size_absolute: int = None
+    # The relative degree of freedom of the surrogate model is multiplied by the value
+    surrogate_data_max_size_relative_dof: float = None
 
-    #       models are trained in mahalanobis space
+
+    #########################################
+    #   MAPPING of the surrogate's data
+    #    The conditioning in objective function can be high enough so most of the training samples became irrelevant.
+    #    A conversion to he mahalanobis space (provided by the CMA-ES algorithm) can reduce the issue.
     # TODO: fix mahalanobis transformation and enable
     surrogate_data_mahalanobis_space: bool = False
 

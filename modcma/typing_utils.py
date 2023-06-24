@@ -9,3 +9,6 @@ yType = np.float64
 
 XType = npt.NDArray[xType]
 YType = npt.NDArray[yType]
+
+NDArrayInt = npt.NDArray[np.int_]
+

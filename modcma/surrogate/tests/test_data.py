@@ -130,7 +130,7 @@ class TestSurrogateData_V1(unittest.TestCase, NumpyUnitTest):
         S = Parameters(5)
 
         for size in [3, 64, 101, 200]:
-            S.surrogate_data_max_size = size
+            S.surrogate_data_max_size_absolute = size
             A = SurrogateData_V1(S)
 
             X = np.random.rand(size + 101, 5)
@@ -147,7 +147,7 @@ class TestSurrogateData_V1(unittest.TestCase, NumpyUnitTest):
 
         # FULL
         for size in [3, 64, 101, 200]:
-            S.surrogate_data_max_size = size
+            S.surrogate_data_max_size_absolute = size
             S.surrogate_data_min_weight = 2.5
             S.surrogate_data_max_weight = 100.
             A = SurrogateData_V1(S)
@@ -185,7 +185,7 @@ class TestSurrogateData_V1(unittest.TestCase, NumpyUnitTest):
         # FULL
         for size in [3, 4, 101, 200]:
             for add_size in [2, 5, 1001, 1024]:
-                S.surrogate_data_max_size = size
+                S.surrogate_data_max_size_absolute = size
 
                 A = SurrogateData_V1(S)
                 X = np.random.rand(size + add_size, 5)
