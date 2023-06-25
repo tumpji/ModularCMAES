@@ -319,6 +319,9 @@ class Parameters(AnnotatedStruct):
     # The relative degree of freedom of the surrogate model is multiplied by the value
     surrogate_data_max_size_relative_dof: float = None
 
+    # Removal of the same samples - frequently comes from handling of boundaries
+    surrogate_data_equality_removal: bool = False
+
 
     #########################################
     #   MAPPING of the surrogate's data

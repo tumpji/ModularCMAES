@@ -35,6 +35,11 @@ class SurrogateDataBase(metaclass=ABCMeta):
         x = np.array(x).reshape(1, self.settings.d)
         f = np.array(f).reshape(1, 1)
 
+        # checks for equality
+        if self.settings.surrogate_data_equality_removal:
+            if np.any(np.all(np.equal(self._X, x), axis=1)):
+                return
+
         self._X = np.vstack([self._X, x])
         self._X_mahal = None
         self._F = np.vstack([self._F, f])
@@ -46,6 +51,12 @@ class SurrogateDataBase(metaclass=ABCMeta):
         F = np.array(F).reshape(-1, 1)
         assert (X.shape[1] == self.settings.d)
         assert (X.shape[0] == F.shape[0])
+
+        # checks for equality
+        if self.settings.surrogate_data_equality_removal:
+            selection = [np.any(np.all(np.equal(self._X, x), axis=1)) for x in X]
+            F = F[selection]
+            X = X[selection]
 
         self._X = np.vstack([self._X, X])
         self._X_mahal = None
