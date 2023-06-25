@@ -316,7 +316,6 @@ class Parameters(AnnotatedStruct):
     #     The maximum number of samples used for training of the surrogate can be represented in different ways: 
     # The absolute value
     surrogate_data_max_size_absolute: int = None
-
     # TODO: relative maximum size
     # The relative degree of freedom of the surrogate model is multiplied by the value
     # The purpose of this argument is to capture only the most relevant samples and still manage to train the model.
@@ -325,13 +324,15 @@ class Parameters(AnnotatedStruct):
     # Removal of the same samples - frequently comes from handling of boundaries
     surrogate_data_equality_removal: bool = False
 
-
     #########################################
     #   MAPPING of the surrogate's data
     #    The conditioning in objective function can be high enough so most of the training samples became irrelevant.
     #    A conversion to he mahalanobis space (provided by the CMA-ES algorithm) can reduce the issue.
-    # TODO: fix mahalanobis transformation and enable
     surrogate_data_mahalanobis_space: bool = False
+    # The CMA-ES can create narrow distribution that makes some samples too faraway.
+    # The samples frequently cause problems in the training of the surrogate.
+    # This setting removes all samples that are farther than this value.
+    surrogate_data_mahalanobis_space_max_value: float = 10.
 
     #########################################
     # surrogate - strategy
