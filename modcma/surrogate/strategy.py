@@ -11,7 +11,7 @@ from scipy.stats import kendalltau
 from modcma.parameters import Parameters
 from modcma.surrogate.acquisition import get_acquisition
 from modcma.utils import normalize_string
-from modcma.surrogate.data import SurrogateData_V1
+from modcma.surrogate.data import SurrogateData_V2
 from modcma.typing_utils import XType, YType, yType
 from modcma.surrogate.regression_models.model import SurrogateModelBase, get_model
 
@@ -30,7 +30,7 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
             raise NotImplementedError(
                 "Cannot use surrogate model with sequential selection")
 
-        self.data = SurrogateData_V1(self.parameters)
+        self.data = SurrogateData_V2(self.parameters)
 
         self._model: SurrogateModelBase = get_model(self.parameters)
         self._load_strategy_parameters()
