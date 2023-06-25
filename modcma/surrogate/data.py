@@ -7,42 +7,55 @@ from scipy.stats import kendalltau
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 from modcma.parameters import Parameters
-from modcma.typing_utils import XType, YType, xType, yType
+from modcma.typing_utils import XType, YType, xType, yType, NDArrayInt
+
+from modcma.utils import normalize_str_eq
 
 
-class SurrogateData_V1(metaclass=ABCMeta):
-    FIELDS = ['_X', '_F']
+class SurrogateDataBase(metaclass=ABCMeta):
+    FIELDS = ['_X', '_X_mahal', '_F', '_TIME']
 
     def __init__(self, settings: Parameters):
         self.settings = settings
 
         # (#Samples, Dimensions)
-        self._X: Optional[XType] = None
-        # (#Samples, 1)
-        self._F: Optional[YType] = None
+        self._X: XType = np.empty(0, settings.d, dtype=np.float64)
+        self._F: YType = np.empty(0, 1, dtype=np.float64)
+        self._TIME: NDArrayInt = np.empty(0, 1, dtype=np.int_)
+        self._act_time = 0
+
+        # mahalanobis cache
+        self._X_mahal: Optional[XType] = None
+        self._converted_m = None
+        self._converted_inv_root_C = None
 
     def push(self, x, f: Union[YType, float]):
-        ''' push elements to the archive '''
-        x = np.array(x).reshape(1, -1)
-        f = np.array(f).reshape(-1,  1)
+        """ Push element to the archive """
+        self._act_time += 1
+        x = np.array(x).reshape(1, self.settings.d)
+        f = np.array(f).reshape(1, 1)
 
-        if self._X is None or self._F is None:
-            self._X, self._F = x, f
-        else:
-            self._X = np.vstack([self._X, x])
-            self._F = np.vstack([self._F, f])
+        self._X = np.vstack([self._X, x])
+        self._X_mahal = None
+        self._F = np.vstack([self._F, f])
+        self._TIME = np.vstack([self._TIME, self._act_time])
 
-    def push_many(self, X, F):
-        ''' same as push but with arrays '''
+    def push_many(self, X, F, time_ordered=False):
+        """ Push multiple elements into the archive """
+        self._act_time += 1
         F = np.array(F).reshape(-1, 1)
-        assert(X.shape[1] == self.settings.d)
-        assert(X.shape[0] == F.shape[0])
+        assert (X.shape[1] == self.settings.d)
+        assert (X.shape[0] == F.shape[0])
 
-        if self._X is None or self._F is None:
-            self._X, self._F = X, F
+        self._X = np.vstack([self._X, X])
+        self._X_mahal = None
+        self._F = np.vstack([self._F, F])
+        if time_ordered:
+            time_order = np.arange(self._act_time, self._act_time + len(F)).reshape(-1, 1)
+            self._act_time += len(F) - 1
         else:
-            self._X = np.vstack([self._X, X])
-            self._F = np.vstack([self._F, F])
+            time_order = np.repeat(self._act_time, len(F)).reshape(-1, 1)
+        self._TIME = np.vstack([self._TIME, time_order])
 
     def pop(self, number: int = 1):
         """ Removes @number of elements from the beginning of the stack (default=1) and returns them.
@@ -51,55 +64,74 @@ class SurrogateData_V1(metaclass=ABCMeta):
         x = self._X[:number]
         f = self._F[:number]
         self._X = self._X[number:]
+        self._X_mahal = None
         self._F = self._F[number:]
+        self._TIME = self._TIME[number:]
         return x, f
 
-    def _sort_selection(self, selection: slice):
-        ''' implemnts the sorting algorithm; returns order indices '''
-        if self._F is None or self._X is None:
+    def __len__(self) -> int:
+        """ Returns the number of saved samples (not necessary equals to the training size) """
+        return self._F.shape[0]
+
+    def _update_X_mahal(self):
+        """ checks if the conversion to the mahalanobis space is up-to-date"""
+        if self._X_mahal is None \
+                or len(self._X) != len(self._X_mahal) \
+                or self._converted_m != self.settings.m \
+                or self._converted_inv_root_C != self.settings.inv_root_C:
+            self._converted_m = self.settings.m
+            self._converted_inv_root_C = self.settings.inv_root_C
+            self._X_mahal = (self._X - self.settings.m.T) @ self.settings.inv_root_C.T
+
+    def _compute_order_measure(self, selection: slice = slice(None)):
+        """ returns the preference of the samples """
+        sort_method = self.settings.surrogate_data_sorting
+
+        if normalize_str_eq(sort_method, 'time'):
+            measure = -self._TIME[selection]
+        elif normalize_str_eq(sort_method, 'lq'):
+            measure = self._F[selection]
+        elif normalize_str_eq(sort_method, 'mahalanobis'):
+            self._update_X_mahal()
+            measure = np.sum(np.square(self._X_mahal[selection]), axis=1, keepdims=True)
+        else:
+            raise NotImplementedError(f'The sorting method {sort_method} is not implemented.')
+
+        assert measure.shape[1] == 1
+        return measure
+
+    def sort_all(self):
+        """ sorts all elements based on surrogate_data_sorting """
+        if len(self) <= 1:
             return
 
-        s_type = self.settings.surrogate_data_sorting.lower()
+        order = np.argsort(self._compute_order_measure(), axis=0)
 
-        if s_type == 'lq':
-            measure = self._F[selection]
-        elif s_type == 'mahalanobis':
-            inv_root_C = self.settings.inv_root_C
-            p = inv_root_C @ (self._X[selection] - self.settings.m.T)
-            measure = (p.T @ p)
-        elif s_type == 'time':
-            raise RuntimeError('This should not happen')
-        else:
-            raise NotImplementedError('Unknown sorting method')
-
-        # smallest last
-        measure = -measure.ravel()
-        order = np.argsort(measure)
-        return order
-
+        for name in self.FIELDS:
+            data = getattr(self, name)
+            if data is not None:
+                setattr(self, name, data[order])
 
     def sort(self, n: Optional[int] = None) -> None:
         """ sorts latest n elements based on surrogate_data_sorting """
 
-        if (n is not None and n <= 1) \
-            or len(self) <= 1 \
-            or self.settings.surrogate_data_sorting == 'time':
+        if n is None:
+            return self.sort_all()
+
+        if n <= 1 or len(self) <= 1:
             return
 
-        if n is None:
-            select: slice = slice(None)
-            other: slice = slice(0, 0)
-        else:
-            n = min(len(self), n)
-            select: slice = slice(-n, None)
-            other: slice = slice(None, -n)
+        n = min(len(self), n)
+        select: slice = slice(-n, None)
+        other: slice = slice(None, -n)
 
-        order = self._sort_selection(select)
+        order = np.argsort(self._compute_order_measure(select), axis=0)
 
         for name in self.FIELDS:
             data = getattr(self, name)
-            new_data = [data[other], data[select, :][order, :]]
-            setattr(self, name, np.vstack(new_data))
+            if data is not None:
+                new_data = [data[other], data[select][order]]
+                setattr(self, name, np.vstack(new_data))
 
     def prune(self) -> None:
         """ removes unwanted elements """
@@ -108,40 +140,27 @@ class SurrogateData_V1(metaclass=ABCMeta):
         if len(self) > self.model_size:
             self.pop(number=len(self) - self.model_size)
 
-    def __len__(self) -> int:
-        ''' number of saved samples (not nessesary for trainign purposes) '''
-        if self._F is None:
-            return 0
-        return self._F.shape[0]
-
     @property
     def model_size(self) -> int:
         """ number of samples selected for training a surrogate model """
         size = len(self)
 
         # absolute max
-        if self.settings.surrogate_data_max_size is not None:
-            size = min(size, self.settings.surrogate_data_max_size)
+        if self.settings.surrogate_data_max_size_absolute is not None:
+            size = min(size, self.settings.surrogate_data_max_size_absolute)
 
         # relative max
-        if self.settings.surrogate_data_max_relative_size is not None:
+        if self.settings.surrogate_data_max_size_relative_dof is not None:
             if self.settings.surrogate_model_instance is not None:
                 if self.settings.surrogate_model_instance.dof > 0:
-                    size = min(size,
-                               int(math.ceil(
-                                   self.settings.surrogate_data_max_relative_size
-                                   * self.settings.surrogate_model_instance.dof)))
+                    t = self.settings.surrogate_data_max_size_relative_dof * self.settings.surrogate_model_instance.dof
+                    size = min(size, int(math.ceil(t)))
         return size
 
         # truncation ratio
         # if self.settings.surrogate_data_truncation_ratio is not None:
         #    size = int(math.ceil(size * self.settings.surrogate_data_truncation_ratio))
         # return size
-
-    def __getitem__(self, items):
-        if self.X is None or self.F is None:
-            return None, None
-        return self.X[items], self.F[items]
 
     # MODEL BUILDING BUSINESS
     @property
@@ -150,6 +169,7 @@ class SurrogateData_V1(metaclass=ABCMeta):
         if self._X is None:
             return None
 
+        #
         X = self._X[-self.model_size:]
         if self.settings.surrogate_data_mahalanobis_space:
             # TODO: check/fix dimensions self.settings.inv_root_C @ (X - self.settings.m.T).T ???
