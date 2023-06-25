@@ -316,8 +316,11 @@ class Parameters(AnnotatedStruct):
     #     The maximum number of samples used for training of the surrogate can be represented in different ways: 
     # The absolute value
     surrogate_data_max_size_absolute: int = None
+
+    # TODO: relative maximum size
     # The relative degree of freedom of the surrogate model is multiplied by the value
-    surrogate_data_max_size_relative_dof: float = None
+    # The purpose of this argument is to capture only the most relevant samples and still manage to train the model.
+    # surrogate_data_max_size_relative_dof: float = None
 
     # Removal of the same samples - frequently comes from handling of boundaries
     surrogate_data_equality_removal: bool = False

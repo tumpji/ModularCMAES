@@ -11,4 +11,5 @@ XType = npt.NDArray[xType]
 YType = npt.NDArray[yType]
 
 NDArrayInt = npt.NDArray[np.int_]
+NDArrayBool= npt.NDArray[np.bool_]
 
