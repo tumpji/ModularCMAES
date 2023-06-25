@@ -1,27 +1,23 @@
 import numpy as np
-import math
 
-from typing import Callable, List, Union, Optional, Any
-from numpy.typing import NDArray
-from scipy.stats import kendalltau
-from abc import ABCMeta, abstractmethod, abstractproperty
+from typing import Union, Optional
 
 from modcma.parameters import Parameters
-from modcma.typing_utils import XType, YType, xType, yType, NDArrayInt, NDArrayBool
+from modcma.typing_utils import XType, YType, NDArrayInt, NDArrayBool
 
 from modcma.utils import normalize_str_eq
 
 
-class SurrogateDataBase(metaclass=ABCMeta):
+class SurrogateDataBase:
     FIELDS = ['_X', '_F', '_TIME']
 
     def __init__(self, settings: Parameters):
         self.settings = settings
 
         # (#Samples, Dimensions)
-        self._X: XType = np.empty(0, settings.d, dtype=np.float64)
-        self._F: YType = np.empty(0, 1, dtype=np.float64)
-        self._TIME: NDArrayInt = np.empty(0, 1, dtype=np.int_)
+        self._X: XType = np.empty((0, settings.d), dtype=np.float64)
+        self._F: YType = np.empty((0, 1), dtype=np.float64)
+        self._TIME: NDArrayInt = np.empty((0, 1), dtype=np.int_)
         self._act_time = 0
 
     def push(self, x, f: Union[YType, float]):
@@ -168,6 +164,7 @@ class SurrogateData_V1(SurrogateDataBase):
         else:
             raise NotImplementedError("Couldn't interpret the weight_function")
 
+
 class SurrogateData_V2(SurrogateData_V1):
     """ Uses boolean selection instead of slices to extract data from the archive """
     FIELDS = ['_X', '_F', '_X_mahal', '_X_mahal_norm', '_TIME']
@@ -245,7 +242,7 @@ class SurrogateData_V2(SurrogateData_V1):
 
             # mask is finished, now apply the maximum number of elements
             assert mask.shape[0] == len(self)
-            self._selection_cache = np.where(mask)
+            self._selection_cache, = np.where(mask)
 
             # now apply the maximum number of elements
             self._selection_cache = self._selection_cache[-self._max_training_size:]
