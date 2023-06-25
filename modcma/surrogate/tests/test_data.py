@@ -179,26 +179,6 @@ class TestSurrogateData_V1(unittest.TestCase, NumpyUnitTest):
         self.assertAlmostEqual(A.W[1], (S.surrogate_data_min_weight + S.surrogate_data_max_weight)/2)
         self.assertEqual(A.W[-1], S.surrogate_data_max_weight)
 
-    def test_prune(self):
-        S = Parameters(5, surrogate_data_mahalanobis_space=False)
-
-        # FULL
-        for size in [3, 4, 101, 200]:
-            for add_size in [2, 5, 1001, 1024]:
-                S.surrogate_data_max_size_absolute = size
-
-                A = SurrogateData_V1(S)
-                X = np.random.rand(size + add_size, 5)
-                F = np.random.rand(size + add_size, 1)
-                A.push_many(X, F)
-                self.assertIsNotNone(A.F)
-                self.assertIsNotNone(A.X)
-
-                A.prune()
-
-                self.assertArrayEqual(A.F, F[-size:])
-                self.assertArrayEqual(A.X, X[-size:])
-
     def test_getitem(self):
         S = Parameters(5, surrogate_data_mahalanobis_space=False)
 

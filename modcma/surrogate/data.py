@@ -133,12 +133,8 @@ class SurrogateDataBase(metaclass=ABCMeta):
                 new_data = [data[other], data[select][order]]
                 setattr(self, name, np.vstack(new_data))
 
-    def prune(self) -> None:
-        """ removes unwanted elements """
 
-        # MAX_SIZE
-        if len(self) > self.model_size:
-            self.pop(number=len(self) - self.model_size)
+class SurrogateData_V1(SurrogateDataBase):
 
     @property
     def model_size(self) -> int:

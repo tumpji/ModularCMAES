@@ -101,8 +101,7 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
     def true_obj_eval(
             self,
             X: XType,
-            sort: Union[int, bool] = True,
-            prune: bool = False
+            sort: Union[int, bool] = True
     ) -> YType:
         """ Evaluates all samples using true objective function """
 
@@ -118,20 +117,16 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
         elif isinstance(sort, int):
             self.apply_sort(sort)
 
-        if prune:
-            self.data.prune()
-
         return F
 
     @abstractmethod
     def __call__(
             self,
             X: XType,
-            sort: Union[int, bool] = True,
-            prune: bool = False
+            sort: Union[int, bool] = True
     ) -> YType:
         """ Evaluates all samples using true objective function """
-        return self.true_obj_eval(X, sort, prune)
+        return self.true_obj_eval(X, sort)
 
     @classmethod
     def name(cls) -> str:
