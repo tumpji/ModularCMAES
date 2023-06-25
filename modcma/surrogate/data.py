@@ -45,11 +45,9 @@ class SurrogateData_V1(metaclass=ABCMeta):
             self._F = np.vstack([self._F, F])
 
     def pop(self, number: int = 1):
-        ''' removes n elements from the beggining of the stack (default=1)
-            and returns them
-        '''
-        if self._X is None or self._F is None:
-            return None, None
+        """ Removes @number of elements from the beginning of the stack (default=1) and returns them.
+            If ordered, it corresponds to the least relevant
+        """
         x = self._X[:number]
         f = self._F[:number]
         self._X = self._X[number:]
@@ -81,7 +79,7 @@ class SurrogateData_V1(metaclass=ABCMeta):
 
 
     def sort(self, n: Optional[int] = None) -> None:
-        ''' sorts top n elements default: sorts all elements '''
+        """ sorts latest n elements based on surrogate_data_sorting """
 
         if (n is not None and n <= 1) \
             or len(self) <= 1 \
@@ -104,7 +102,7 @@ class SurrogateData_V1(metaclass=ABCMeta):
             setattr(self, name, np.vstack(new_data))
 
     def prune(self) -> None:
-        ''' removes unwanted elements '''
+        """ removes unwanted elements """
 
         # MAX_SIZE
         if len(self) > self.model_size:
@@ -118,7 +116,7 @@ class SurrogateData_V1(metaclass=ABCMeta):
 
     @property
     def model_size(self) -> int:
-        ''' number of samples selected for training a surrogate model '''
+        """ number of samples selected for training a surrogate model """
         size = len(self)
 
         # absolute max
@@ -136,9 +134,9 @@ class SurrogateData_V1(metaclass=ABCMeta):
         return size
 
         # truncation ratio
-        #if self.settings.surrogate_data_truncation_ratio is not None:
+        # if self.settings.surrogate_data_truncation_ratio is not None:
         #    size = int(math.ceil(size * self.settings.surrogate_data_truncation_ratio))
-        #return size
+        # return size
 
     def __getitem__(self, items):
         if self.X is None or self.F is None:

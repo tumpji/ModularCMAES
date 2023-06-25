@@ -299,9 +299,9 @@ class Parameters(AnnotatedStruct):
     #  - linear - the importance is linearly decreasing
     #  - logarithmic - the importance decreases quickly
     surrogate_data_weighting: ('constant', 'linear', 'logarithmic') = 'linear'
-    # Unless the 'conctant' weighting is selected the minimum (the least important sample) has the weight of
+    # Unless the 'constant' weighting is selected the minimum (the least important sample) has the weight of
     surrogate_data_min_weight: float = 1.
-    # Unless the 'conctant' weighting is selected the maximum (the most important sample) has the weight of
+    # Unless the 'constant' weighting is selected the maximum (the most important sample) has the weight of
     surrogate_data_max_weight: float = 20.
     # The importance of weighting is determined by the
     #  - time - most recent samples are prioritized
