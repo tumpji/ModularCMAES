@@ -80,7 +80,7 @@ class SurrogateDataBase(metaclass=ABCMeta):
         return (X - self.settings.m.T) @ self.settings.inv_root_C.T
 
     def _compute_order_measure(self, selection: slice = slice(None)) -> YType:
-        """ returns the preference of the samples """
+        """ returns the preference for the samples """
         sort_method = self.settings.surrogate_data_sorting
 
         if normalize_str_eq(sort_method, 'time'):
@@ -134,7 +134,7 @@ class SurrogateData_V1(SurrogateDataBase):
     present."""
 
     @property
-    def _max_model_size(self) -> int:
+    def _max_training_size(self) -> int:
         """ number of samples selected for training a surrogate model """
         # absolute max
         if self.settings.surrogate_data_max_size_absolute is not None:
@@ -144,27 +144,27 @@ class SurrogateData_V1(SurrogateDataBase):
     @property
     def X(self) -> Optional[XType]:  # Covariates
         """ returns all training data """
-        return self._X[-self._max_model_size:]
+        return self._X[-self._max_training_size:]
 
     @property
     def F(self) -> Optional[YType]:  # Target Values
-        return self._F[-self._max_model_size:]
+        return self._F[-self._max_training_size:]
 
     @property
     def W(self):  # Weight
         if self.settings.surrogate_data_weighting == 'constant':
-            return np.ones(self._max_model_size)
+            return np.ones(self._max_training_size)
         elif self.settings.surrogate_data_weighting == 'logarithmic':
             assert self.settings.surrogate_data_min_weight > 0.
             assert self.settings.surrogate_data_max_weight > 0.
             return np.logspace(np.log10(self.settings.surrogate_data_max_weight),
                                np.log10(self.settings.surrogate_data_min_weight),
-                               num=self._max_model_size)
+                               num=self._max_training_size)
             pass
         elif self.settings.surrogate_data_weighting == 'linear':
             return np.linspace(self.settings.surrogate_data_min_weight,
                                self.settings.surrogate_data_max_weight,
-                               num=self._max_model_size)
+                               num=self._max_training_size)
         else:
             raise NotImplementedError("Couldn't interpret the weight_function")
 
@@ -208,54 +208,3 @@ class SurrogateData_V2(SurrogateDataBase):
                                num=self._max_model_size)
         else:
             raise NotImplementedError("Couldn't interpret the weight_function")
-'''
-
-'''
-#####################
-# Population Storage Management
-
-class FilterUnique(Filter):
-    def __call__(self, pop: PopHistory) -> PopHistory:
-        _, ind = np.unique(pop.x, axis=1, return_index=True)
-        return pop[ind]
-
-
-class FilterDistance(Filter):
-    def __init__(self, parameters: Parameters, distance: float):
-        self.max_distance = distance
-        self.parameters = parameters
-
-    @abstractmethod
-    def _compute_distance(self, pop: PopHistory) -> npt.NDArray[np.float32]:
-        pass
-
-    def _get_mask(self, pop: PopHistory) -> npt.NDArray[np.bool_]:
-        distance = self._compute_distance(pop)
-        return distance <= self.max_distance
-
-    def __call__(self, pop: PopHistory) -> PopHistory:
-        mask = self._get_mask(pop)
-        return pop[mask]
-
-
-class FilterDistanceMahalanobis(FilterDistance):
-    def __init__(self, parameters: Parameters, distance: float):
-        super().__init__(parameters, distance)
-        B = self.parameters.B
-        sigma = self.parameters.sigma
-        D = self.parameters.D
-
-        self.transformation = np.linalg.inv(B) @ np.diag((1./sigma)*(1./D))
-
-    def _compute_distance(self, pop: PopHistory) -> npt.NDArray[np.float32]:
-        center_x = pop.x - self.parameters.m
-        return np.sqrt(self.transformation @ center_x)
-
-
-FILTER_TYPE = Union[
-    FilterRealEvaluation,
-    FilterUnique,
-    FilterDistanceMahalanobis
-]
-
-'''
