@@ -268,7 +268,7 @@ class Parameters(AnnotatedStruct):
     sequential: bool = False
     threshold_convergence: bool = False
     bound_correction: (
-        None, "saturate", "unif_resample", "COTN", "toroidal", "mirror") = None
+        None, "saturate", "unif_resample", "COTN", "toroidal", "mirror") = "mirror"
     orthogonal: bool = False
     local_restart: (None, "IPOP", "BIPOP") = None
     base_sampler: ("gaussian", "sobol", "halton") = "gaussian"
