@@ -25,6 +25,7 @@ def main(
         seed=seed,
         data_folder=data_folder,
         iterations=exp_repetitions,
+        # selecting BBOB class of problems
         problem_class=ProblemClass.BBOB,
         **parameters
     )

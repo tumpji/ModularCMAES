@@ -498,6 +498,7 @@ def evaluate_bbob(
     )
 
     if logging:
+        # TODO: add triggers
         data_location = data_folder if os.path.isdir(data_folder) else os.getcwd()
         logger = ioh.logger.Analyzer(root=data_location, folder_name=f"{label}F{fid}_{dim}D")
         fitness_func.attach_logger(logger)

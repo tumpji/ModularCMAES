@@ -324,6 +324,9 @@ class Parameters(AnnotatedStruct):
     # Removal of the same samples - frequently comes from handling of boundaries
     surrogate_data_equality_removal: bool = False
 
+    # TODO: change for surrogate_strategy_DTS_min_samples_for_surrogate
+    # surrogate_data_minimum_samples: int = None
+
     #########################################
     #   MAPPING of the surrogate's data
     #    The conditioning in objective function can be high enough so most of the training samples became irrelevant.
@@ -336,7 +339,7 @@ class Parameters(AnnotatedStruct):
 
     #########################################
     # surrogate - strategy
-    surrogate_strategy: ('Unsure', 'Random', 'Kendall', 'DTS', None) = 'DTS'
+    surrogate_strategy: ('Unsure', 'Random', 'DTS', None) = None
     # TODO: Kendall
     surrogate_strategy_sort_type: (None, 'all', 'evaluated') = None
 
@@ -384,7 +387,6 @@ class Parameters(AnnotatedStruct):
     # only for specific models
     surrogate_model_selection_criteria: ('LogLikelihood', 'RDE', 'SRDE', 'ESRDE', 'L1', 'L2', 'Kendall') = 'L2'
     surrogate_model_selection_cross_validation_folds = 5  # if less than one - no cv
-    surrogate_model_selection_cross_validation_random_state: int = None
 
     surrogate_model_gp_learning_rate: float = 0.03
     surrogate_model_gp_max_iterations: int = 5000

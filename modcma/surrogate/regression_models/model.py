@@ -190,7 +190,6 @@ class SklearnSurrogateModelBase(SurrogateModelBase):
         return super().predict_with_confidence(X)
     '''
 
-
 class Linear_SurrogateModel(SklearnSurrogateModelBase):
     ModelName = 'Linear'
 
