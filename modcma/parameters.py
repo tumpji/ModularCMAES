@@ -290,6 +290,9 @@ class Parameters(AnnotatedStruct):
     sobol: TypeVar("Sobol") = None
     halton: TypeVar("Halton") = None
 
+    # numpy - random number generator
+    numpy_rng: np.random.RandomState = None
+
     #########################################
     #   WEIGHTING of the surrogate's training data
     #     Some samples can be considered more important than others

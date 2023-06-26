@@ -466,7 +466,7 @@ def evaluate_bbob(
     seed: int = 42
         The random seed to be used
     instance: int = 1
-        The bbob function instance
+        The bbob function instance ~= seed for the problem
     target_precision: float = 1e-8
         The target precision for the objective function value
     return_optimizer: bool = False
@@ -490,8 +490,7 @@ def evaluate_bbob(
         problem_class = ioh.ProblemClass.REAL
 
     evals, fopts = np.array([]), np.array([])
-    if seed:
-        np.random.seed(seed)
+
     fitness_func = ioh.get_problem(
         fid, dimension=dim, instance=instance,
         problem_class=problem_class
@@ -508,12 +507,16 @@ def evaluate_bbob(
         f"{target_precision} with {iterations} iterations."
     )
 
+    if seed:
+        numpy_rng = np.random.default_rng(seed)
+        np.random.seed(seed)
+
     for idx in range(iterations):
         if idx > 0:
             fitness_func.reset()
         target = fitness_func.optimum.y + target_precision
 
-        optimizer = ModularCMAES(fitness_func, dim, target=target, **kwargs).run()
+        optimizer = ModularCMAES(fitness_func, dim, target=target, numpy_rng=numpy_rng, **kwargs).run()
         evals = np.append(evals, fitness_func.state.evaluations)
         fopts = np.append(fopts, fitness_func.state.current_best_internal.y)
 
