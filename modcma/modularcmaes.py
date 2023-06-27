@@ -512,9 +512,8 @@ def evaluate_bbob(
         f"{target_precision} with {iterations} iterations."
     )
 
-    if seed:
+    if seed is not None:
         numpy_rng = np.random.default_rng(seed)
-        #np.random.seed(seed)
     else:
         numpy_rng = np.random.default_rng()
 
