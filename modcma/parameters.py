@@ -291,7 +291,7 @@ class Parameters(AnnotatedStruct):
     halton: TypeVar("Halton") = None
 
     # numpy - random number generator
-    numpy_rng: np.random.RandomState = None
+    numpy_rng: np.random.Generator = None
 
     #########################################
     #   WEIGHTING of the surrogate's training data
@@ -439,12 +439,12 @@ class Parameters(AnnotatedStruct):
 
         """
         if self.base_sampler == 'gaussian':
-            sampler = gaussian_sampling(self.d)
+            sampler = gaussian_sampling(self.d, self.numpy_rng)
         elif self.base_sampler == 'sobol':
-            self.sobol = self.sobol or Sobol(self.d)
+            self.sobol = self.sobol or Sobol(self.d, self.numpy_rng)
             sampler = sobol_sampling(self.sobol)
         elif self.base_sampler == 'halton':
-            self.halton = self.halton or Halton(self.d)
+            self.halton = self.halton or Halton(self.d, self.numpy_rng)
             sampler = halton_sampling(self.halton)
 
         if self.orthogonal:
@@ -593,7 +593,7 @@ class Parameters(AnnotatedStruct):
         """
         self.sigma = np.float64(self.sigma0) * (self.ub[0, 0] - self.lb[0, 0])
         if hasattr(self, "m") or self.x0 is None:
-            self.m = np.float64(np.random.uniform(self.lb, self.ub, (self.d, 1)))
+            self.m = np.float64(self.numpy_rng.uniform(self.lb, self.ub, (self.d, 1)))
         else:
             self.m = np.float64(self.x0.copy())
         self.m_old = np.empty((self.d, 1), dtype=np.float64)
@@ -770,7 +770,7 @@ class Parameters(AnnotatedStruct):
                 self.lambda_ *= self.ipop_factor
 
             elif self.local_restart == "BIPOP":
-                self.bipop_parameters.adapt(self.used_budget)
+                self.bipop_parameters.adapt(self.used_budget, self.numpy_rng)
                 self.sigma = self.bipop_parameters.sigma
                 self.lambda_ = self.bipop_parameters.lambda_
                 self.mu = self.bipop_parameters.mu
@@ -862,7 +862,6 @@ class Parameters(AnnotatedStruct):
                 raise AttributeError(
                     f"{filename} does not contain " "a Parameters object"
                 )
-        np.random.set_state(parameters.random_state)
         parameters.sampler = parameters.get_sampler()
         return parameters
 
@@ -878,7 +877,6 @@ class Parameters(AnnotatedStruct):
         sampler = self.sampler
         with open(filename, "wb") as f:
             self.sampler = None
-            self.random_state = np.random.get_state()
             pickle.dump(self, f)
         self.sampler = sampler
 
@@ -1024,17 +1022,16 @@ class BIPOPParameters(AnnotatedStruct):
         """Return value for lambda, based which regime is active."""
         return self.lambda_large if self.large else self.lambda_small
 
-    @property
-    def sigma(self) -> float:
+    def sigma(self, numpy_rng: np.random.Generator) -> float:
         """Return value for sigma, based on which regime is active."""
-        return 2 if self.large else 2e-2 * np.random.uniform()
+        return 2 if self.large else 2e-2 * numpy_rng.uniform()
 
     @property
     def mu(self) -> int:
         """Return value for mu."""
         return np.floor(self.lambda_ * self.mu_factor).astype(int)
 
-    def adapt(self, used_budget: int) -> None:
+    def adapt(self, used_budget: int, numpy_rng: np.random.Generator) -> None:
         """Adapt the parameters for BIPOP on restart."""
         used_previous_iteration = used_budget - self.used_budget
         self.used_budget += used_previous_iteration
@@ -1051,7 +1048,7 @@ class BIPOPParameters(AnnotatedStruct):
 
         self.lambda_small = np.floor(
             self.lambda_init
-            * (0.5 * self.lambda_large / self.lambda_init) ** (np.random.uniform() ** 2)
+            * (0.5 * self.lambda_large / self.lambda_init) ** (numpy_rng.uniform() ** 2)
         ).astype(int)
 
         if self.lambda_small % 2 != 0:

@@ -36,7 +36,7 @@ class QmcSampler(Iterator):
 class Sobol(QmcSampler):
     """Wrapper around scipy.stats.qmc.Sobol sampler."""
 
-    def __init__(self, d: int):
+    def __init__(self, d: int, numpy_rng: np.random.Generator):
         """Call super init.
 
         Parameters
@@ -45,13 +45,13 @@ class Sobol(QmcSampler):
             dimensionality of the generated samples
 
         """
-        super().__init__(stats.qmc.Sobol(d, seed=np.random.randint(10**9)))
+        super().__init__(stats.qmc.Sobol(d, seed=numpy_rng))
 
 
 class Halton(QmcSampler):
     """Wrapper around scipy.stats.qmc.Halton sampler."""
 
-    def __init__(self, d: int):
+    def __init__(self, d: int, numpy_rng: np.random.Generator):
         """Call super init.
 
         Parameters
@@ -60,10 +60,10 @@ class Halton(QmcSampler):
             dimensionality of the generated samples
 
         """
-        super().__init__(stats.qmc.Halton(d, seed=np.random.randint(10**9)))
+        super().__init__(stats.qmc.Halton(d, seed=numpy_rng))
 
 
-def gaussian_sampling(d: int) -> Generator[np.ndarray, None, None]:
+def gaussian_sampling(d: int, numpy_rng: np.random.Generator) -> Generator[np.ndarray, None, None]:
     """Generator yielding random normal (gaussian) samples.
 
     Parameters
@@ -77,7 +77,7 @@ def gaussian_sampling(d: int) -> Generator[np.ndarray, None, None]:
 
     """
     while True:
-        yield np.random.randn(d, 1)
+        yield numpy_rng.normal(size=(d, 1))
 
 
 def sobol_sampling(sobol: Sobol) -> Generator[np.ndarray, None, None]:

@@ -18,7 +18,7 @@ class TestParameters(unittest.TestCase):
 
     def setUp(self):
         """Test setup method."""
-        np.random.seed(42)
+        self.numpy_rng = np.random.Generator(42)
         self.p = Parameters(5)
 
     def try_wrong_types(self, p, name, type_):
@@ -53,20 +53,20 @@ class TestParameters(unittest.TestCase):
         """Test BIPOPParameters."""
         self.p.local_restart = "BIPOP"
         self.p.used_budget += 11
-        self.p.bipop_parameters.adapt(self.p.used_budget)
+        self.p.bipop_parameters.adapt(self.p.used_budget, self.numpy_rng)
         self.assertEqual(self.p.bipop_parameters.large, True)
         bp = self.p.bipop_parameters 
         self.assertEqual(bp.lambda_, self.p.lambda_ * 2)
         self.assertEqual(bp.mu, self.p.mu * 2)
         self.assertEqual(bp.sigma, 2)
         self.p.used_budget += 11
-        bp.adapt(self.p.used_budget)
+        bp.adapt(self.p.used_budget, self.numpy_rng)
         self.assertEqual(self.p.bipop_parameters.large, False)
         self.assertLessEqual(bp.lambda_, self.p.lambda_)
         self.assertLessEqual(bp.mu, self.p.mu)
         self.assertLessEqual(bp.sigma, self.p.sigma0)
         self.p.used_budget += 11
-        bp.adapt(self.p.used_budget)
+        bp.adapt(self.p.used_budget, self.numpy_rng)
         self.assertEqual(bp.used_budget, 33)
 
     def test_sampler(self):
@@ -204,7 +204,7 @@ class TestParameters(unittest.TestCase):
             self.assertEqual(len(self.p.weights), 11)
 
         b = BIPOPParameters(7, 20, .5)
-        b.adapt(11)
+        b.adapt(11, self.numpy_rng)
         self.assertEqual(b.lambda_small, 8)
 
 if __name__ == "__main__":

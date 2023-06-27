@@ -13,7 +13,7 @@ class TestSampling(unittest.TestCase):
 
     def setUp(self):
         """Test setup method."""
-        np.random.seed(12)
+        self.numpy_rng = np.random.default_rng(seed=12)
 
     def is_sampler(self, sampler):
         """Test if a sampler is a sampler."""
@@ -31,25 +31,25 @@ class TestSampling(unittest.TestCase):
 
     def test_gaussian(self):
         """Test gaussian sampling."""
-        sampler = sampling.gaussian_sampling(self._dim)
+        sampler = sampling.gaussian_sampling(self._dim, self.numpy_rng)
         self.is_sampler(sampler)
 
     def test_sobol(self):
         """Test sobol sampling."""
-        sampler = sampling.sobol_sampling(sampling.Sobol(self._dim))
+        sampler = sampling.sobol_sampling(sampling.Sobol(self._dim, self.numpy_rng))
         self.is_sampler(sampler)
 
     def test_halton(self):
         """Test halton sampling."""
-        sampler = sampling.halton_sampling(sampling.Halton(self._dim))
+        sampler = sampling.halton_sampling(sampling.Halton(self._dim, self.numpy_rng))
         self.is_sampler(sampler)
 
     def test_orthogonal(self):
         """Test orthogonal sampling."""
         for base_sampler in (
-            sampling.gaussian_sampling(self._dim),
-            sampling.sobol_sampling(sampling.Sobol(self._dim)),  
-            sampling.halton_sampling(sampling.Halton(self._dim)),
+            sampling.gaussian_sampling(self._dim, self.numpy_rng),
+            sampling.sobol_sampling(sampling.Sobol(self._dim, self.numpy_rng)),
+            sampling.halton_sampling(sampling.Halton(self._dim, self.numpy_rng)),
         ):
             for n_samples in (3, 6):
                 sampler = sampling.orthogonal_sampling(base_sampler, n_samples)
@@ -58,9 +58,9 @@ class TestSampling(unittest.TestCase):
     def test_mirrored(self):
         """Test mirrored sampling."""
         for base_sampler in (
-            sampling.gaussian_sampling(self._dim),
-            sampling.sobol_sampling(sampling.Sobol(self._dim)),  
-            sampling.halton_sampling(sampling.Halton(self._dim)),
+            sampling.gaussian_sampling(self._dim, self.numpy_rng),
+            sampling.sobol_sampling(sampling.Sobol(self._dim, self.numpy_rng)),
+            sampling.halton_sampling(sampling.Halton(self._dim, self.numpy_rng)),
         ):
             sampler = sampling.mirrored_sampling(base_sampler)
             self.is_sampler(sampler)

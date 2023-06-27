@@ -76,7 +76,7 @@ class ModularCMAES:
         n_offspring = int(self.parameters.lambda_ - (2 * perform_tpa))
 
         if self.parameters.step_size_adaptation == 'lp-xnes' or self.parameters.sample_sigma:
-            s = np.random.lognormal(
+            s = self.parameters.numpy_rng.lognormal(
                 np.log(self.parameters.sigma),
                 self.parameters.beta, size=n_offspring
             )
@@ -93,7 +93,8 @@ class ModularCMAES:
             x,
             self.parameters.ub,
             self.parameters.lb,
-            self.parameters.bound_correction
+            self.parameters.bound_correction,
+            self.parameters.numpy_rng
         )
         self.parameters.n_out_of_bounds += n_out_of_bounds
 
@@ -363,7 +364,11 @@ def scale_with_threshold(z: np.ndarray, threshold: float) -> np.ndarray:
 
 
 def correct_bounds(
-        x: np.ndarray, ub: np.ndarray, lb: np.ndarray, correction_method: str
+        x: np.ndarray,
+        ub: np.ndarray,
+        lb: np.ndarray,
+        correction_method: str,
+        numpy_rng: np.random.Generator
 ) -> tuple[np.ndarray, np.ndarray]:
     """Bound correction function.
 
@@ -419,10 +424,10 @@ def correct_bounds(
         )
     elif correction_method == "COTN":
         x[out_of_bounds] = lb + (ub - lb) * np.abs(
-            (y > 0) - np.abs(np.random.normal(0, 1 / 3, size=y.shape))
+            (y > 0) - np.abs(numpy_rng.normal(0, 1 / 3, size=y.shape))
         )
     elif correction_method == "unif_resample":
-        x[out_of_bounds] = np.random.uniform(lb, ub)
+        x[out_of_bounds] = numpy_rng.uniform(lb, ub)
     elif correction_method == "saturate":
         x[out_of_bounds] = lb + (ub - lb) * (y > 0)
     elif correction_method == "toroidal":
@@ -509,7 +514,9 @@ def evaluate_bbob(
 
     if seed:
         numpy_rng = np.random.default_rng(seed)
-        np.random.seed(seed)
+        #np.random.seed(seed)
+    else:
+        numpy_rng = np.random.default_rng()
 
     for idx in range(iterations):
         if idx > 0:
