@@ -154,7 +154,7 @@ class RandomStrategy(SurrogateStrategyBase):
 
         # sampling process
         sample = np.arange(len(X))
-        np.random.shuffle(sample)
+        self.parameters.numpy_rng.shuffle(sample)
         sample, not_sample = sample[:n], sample[n:]
         sample.sort()
         not_sample.sort()
