@@ -423,6 +423,8 @@ class Parameters(AnnotatedStruct):
     def __init__(self, *args, **kwargs) -> None:
         """Intialize parameters. Calls sub constructors for different parameter types."""
         super().__init__(*args, **kwargs)
+        if self.numpy_rng is None:
+            self.numpy_rng = np.random.default_rng()
         self.init_selection_parameters()
         self.init_fixed_parameters()
         self.init_adaptation_parameters()
