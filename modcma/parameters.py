@@ -330,6 +330,10 @@ class Parameters(AnnotatedStruct):
     # TODO: change for surrogate_strategy_DTS_min_samples_for_surrogate
     # surrogate_data_minimum_samples: int = None
 
+    # TODO: add optional E[X] = 0
+    # surrogate_data_normalize_X = False
+    # surrogate_data_normalize_F = False
+
     #########################################
     #   MAPPING of the surrogate's data
     #    The conditioning in objective function can be high enough so most of the training samples became irrelevant.
