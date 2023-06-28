@@ -420,11 +420,11 @@ class Parameters(AnnotatedStruct):
         "bound_correction",
     )
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, seed=None, **kwargs) -> None:
         """Intialize parameters. Calls sub constructors for different parameter types."""
         super().__init__(*args, **kwargs)
         if self.numpy_rng is None:
-            self.numpy_rng = np.random.default_rng()
+            self.numpy_rng = np.random.default_rng(seed=seed)
         self.init_selection_parameters()
         self.init_fixed_parameters()
         self.init_adaptation_parameters()

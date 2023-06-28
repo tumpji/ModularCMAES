@@ -52,19 +52,23 @@ class TestBasic(unittest.TestCase):
         #tf.get_logger().setLevel('INFO')
         pass
 
+    def get_parameters(self, d):
+        return Parameters(d,
+                                seed=42,
+                                surrogate_data_weighting='constant',
+                                surrogate_data_mahalanobis_space=False
+                                )
 
     def test_gp_init(self):
-        parameters = Parameters(3)
+        parameters = self.get_parameters(11)
         model = GaussianProcess(parameters)
 
     def test_gp_linear(self):
-        ''' L should be linear '''
-        parameters = Parameters(3)
-
+        """ L should be linear """
         X = np.random.rand(200, 3)
         Y = X[:,0]*2. + X[:,1] - X[:,2]
 
-        model = GaussianProcess(parameters)
+        model = GaussianProcess(self.get_parameters(3))
         model.fit(X, Y)
 
         Xt = np.random.randn(10, 3)
@@ -75,9 +79,9 @@ class TestBasic(unittest.TestCase):
             self.assertAlmostEqual(Yp[i], Yt[i], places=2)
 
     def test_multiple_kernel_LL(self):
-        ''' L + L = L '''
-        parameters1 = Parameters(2)
-        parameters2 = Parameters(2)
+        """ L + L = L """
+        parameters1 = self.get_parameters(2)
+        parameters2 = self.get_parameters(2)
         parameters2.surrogate_model_gp_kernel = 'Linear + Linear'
 
         X  = np.random.rand(200, 2)
@@ -97,9 +101,9 @@ class TestBasic(unittest.TestCase):
             self.assertAlmostEqual(p1[i], Yt[i], places=2)
 
     def test_multiple_kernel_LL_Q(self):
-        ''' L * L = Q '''
-        parameters1 = Parameters(2)
-        parameters2 = Parameters(2)
+        """ L * L = Q """
+        parameters1 = self.get_parameters(2)
+        parameters2 = self.get_parameters(2)
         parameters1.surrogate_model_gp_kernel = 'Quadratic + Linear'
         parameters2.surrogate_model_gp_kernel = 'Linear * Linear'
 
