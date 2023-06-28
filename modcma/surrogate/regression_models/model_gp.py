@@ -13,6 +13,7 @@ from modcma.parameters import Parameters
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
 from modcma.surrogate.regression_models.model import SurrogateModelBase
+from modcma.surrogate.regression_models.utils_tensorflow import create_positive_variable, create_constant
 from modcma.typing_utils import XType, YType
 
 for k in basic_kernels + functor_kernels:
@@ -35,28 +36,6 @@ Constant: Type[GP_kernel_concrete_base]
 tfb = tfp.bijectors
 tfd = tfp.distributions
 psd_kernels = tfp.math.psd_kernels
-
-
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
-
-def create_positive_variable(default, dtype=tf.float64, name=None):
-    if isinstance(default, (float, int)):
-        default = tf.constant(default, dtype=dtype)
-
-    bijector = tfb.Shift(np.finfo(np.float64).tiny)(tfb.Exp())
-
-    return tfp.util.TransformedVariable(
-        initial_value=default,
-        bijector=bijector,
-        dtype=dtype,
-        name=name,
-    )
-
-
-def create_constant(default, dtype=tf.float64, name: Optional[str] = None):
-    return tf.constant(default, dtype=dtype, name=name)
 
 
 def optionally_create_random_state(
