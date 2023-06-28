@@ -1,4 +1,3 @@
-
 import unittest
 import math
 from numpy.testing import assert_array_equal, assert_array_almost_equal

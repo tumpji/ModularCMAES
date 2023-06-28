@@ -1,39 +1,18 @@
-import inspect
-import sys
-
 import numpy as np
-from numpy.random import sample
-import numpy.typing as npt
 
-from typing import Any, Callable, Optional, Union, Tuple, Iterable, Type
-from typing_extensions import override
-
-from abc import abstractmethod, abstractproperty, ABCMeta
-
-from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LinearRegression
 
-from sklearn.base import BaseEstimator, TransformerMixin
+from abc import abstractmethod, ABCMeta
+from typing import Optional, Tuple
 
-from modcma.surrogate.regression_models import *
+from typing_extensions import override
+from modcma.typing_utils import XType, YType
+from modcma.utils import normalize_string
 
 from modcma.parameters import Parameters
-from modcma.typing_utils import XType, YType
-from modcma.utils import normalize_string, normalize_str_eq, all_subclasses
-
 
 ####################
 # Helper functions
-
-
-class PureQuadraticFeatures(TransformerMixin, BaseEstimator):
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X) -> npt.NDArray[np.float64]:
-        return np.hstack((X, np.square(X)))
-
 
 def normalize_X(X: XType, d):
     assert X.shape[1] == d
@@ -45,10 +24,6 @@ def normalize_F(Y: YType):
 
 
 normalize_W = normalize_F
-
-
-####################
-# Models
 
 
 class SurrogateModelBase(metaclass=ABCMeta):
@@ -108,7 +83,7 @@ class SurrogateModelBase(metaclass=ABCMeta):
     def fitted(self, value: bool):
         self._fitted = value
 
-    @abstractproperty
+    @property
     def df(self) -> int:
         return 0
 
@@ -119,60 +94,6 @@ class SurrogateModelBase(metaclass=ABCMeta):
     @classmethod
     def name(cls) -> str:
         return normalize_string(cls.ModelName)
-
-
-class LQ_SurrogateModel(SurrogateModelBase):
-    ModelName = 'LQ'
-    SAFETY_MARGIN: float = 1.1
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model: Optional[Pipeline] = None
-        self._dof: int = self.parameters.d + 1
-        self.i_model: int = 0
-
-    def _select_model(self, N: int, D: int) -> Pipeline:
-        # model             degree of freedom
-        # linear            D + 1
-        # quadratic         2D + 1
-        # full-quadratic    C_r(D, 1) + C_r(D, 2) = (D^2 + 3D)/2 + 1
-
-        margin = self.parameters.surrogate_model_lq_margin
-
-        if N >= margin * ((D ** 2 + 3 * D) / 2 + 1):
-            ppl = [('full-quadratic',
-                    PolynomialFeatures(degree=2, include_bias=False))]
-            self._dof = (self.parameters.d ** 2 + 3 * self.parameters.d + 2) // 2
-            self.i_model = 2
-        elif N >= margin * (2 * D + 1):
-            ppl = [('pure-quadratic', PureQuadraticFeatures())]
-            self._dof = 2 * self.parameters.d + 1
-            self.i_model = 1
-        else:
-            ppl = []
-            self._dof = self.parameters.d + 1
-            self.i_model = 0
-        return Pipeline(ppl + [('linearregression', LinearRegression())])
-
-    @override
-    def _fit(self, X: XType, F: YType, W: YType) -> None:
-        (N, D) = X.shape
-        self.model = self._select_model(N, D)
-        self.model = self.model.fit(X, F, linearregression__sample_weight=W)
-
-    @override
-    def _predict(self, X: XType) -> YType:
-        if self.model is None:
-            return super().predict(X)
-        return self.model.predict(X)
-
-    @property
-    def df(self) -> int:
-        return self._dof
-
-    @property
-    def max_df(self) -> int:
-        return (self.parameters.d ** 2 + 3 * self.parameters.d) // 2 + 1
 
 
 ####################
@@ -189,89 +110,3 @@ class SklearnSurrogateModelBase(SurrogateModelBase):
     def predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
         return super().predict_with_confidence(X)
     '''
-
-class Linear_SurrogateModel(SklearnSurrogateModelBase):
-    ModelName = 'Linear'
-
-    @override
-    def _fit(self, X: XType, F: YType, W: YType) -> None:
-        self.model = Pipeline([
-            ('linearregression', LinearRegression())
-        ]).fit(X, F, linearregression__sample_weight=W)
-
-    @property
-    def df(self) -> int:
-        return self.parameters.d + 1
-
-
-class QuadraticPure_SurrogateModel(SklearnSurrogateModelBase):
-    ModelName = 'QuadraticPure'
-
-    @override
-    def _fit(self, X: XType, F: YType, W: YType) -> None:
-        self.model = Pipeline([
-            ('quad.f.', PureQuadraticFeatures()),
-            ('linearregression', LinearRegression())
-        ]).fit(X, F, linearregression__sample_weight=W)
-
-    @property
-    def df(self) -> int:
-        return 2 * self.parameters.d + 1
-
-
-class QuadraticInteraction_SurrogateModel(SklearnSurrogateModelBase):
-    ModelName = 'QuadraticInteraction'
-
-    @override
-    def _fit(self, X: XType, F: YType, W: YType) -> None:
-        self.model = Pipeline([
-            ('quad.f.', PolynomialFeatures(degree=2,
-                                           interaction_only=True,
-                                           include_bias=False)),
-            ('linearregression', LinearRegression())
-        ]).fit(X, F, linearregression__sample_weight=W)
-
-    @property
-    def df(self) -> int:
-        return (self.parameters.d * (self.parameters.d + 1) + 2) // 2
-
-
-class Quadratic_SurrogateModel(SklearnSurrogateModelBase):
-    ModelName = 'Quadratic'
-
-    @override
-    def _fit(self, X: XType, F: YType, W: YType) -> None:
-        self.model = Pipeline([
-            ('quad.f.', PolynomialFeatures(degree=2,
-                                           include_bias=False)),
-            ('linearregression', LinearRegression())
-        ]).fit(X, F, linearregression__sample_weight=W)
-
-    @property
-    def df(self):
-        return (self.parameters.d + 2) * (self.parameters.d + 1) // 2
-
-
-def get_model(parameters: Parameters) -> SurrogateModelBase:
-    sur_model_to_find = normalize_string(parameters.surrogate_model)
-
-    sur_model_classes = all_subclasses(SurrogateModelBase)
-    for sur_model_cls in sur_model_classes:
-        if normalize_str_eq(sur_model_cls.ModelName, sur_model_to_find):
-            sur_model_cls: Type[SurrogateModelBase]
-            return sur_model_cls(parameters)
-
-    raise NotImplementedError(
-        f'Cannot find model with name "{parameters.surrogate_model}"')
-
-
-'''
-####################
-# Special models
-
-class LQR2_SurrogateModel(SurrogateModelBase):
-    # TODO: Adjusted R^2 to switch between models
-    # TODO: Interaction only for PolynomialFeatures as an option
-    # TODO: Add ^3
-    pass
-'''
