@@ -2,8 +2,9 @@ import unittest
 from numpy.testing import assert_array_almost_equal
 import numpy as np
 
-from modcma.surrogate.regression_models import LQ_SurrogateModel, get_model, SurrogateModelBase
 from modcma.parameters import Parameters
+from modcma.surrogate.regression_models import get_model, SurrogateModelBase, \
+    Linear_SurrogateModel, Quadratic_SurrogateModel, LQ_SurrogateModel
 
 class Test_get_model(unittest.TestCase):
     def test_empty(self):

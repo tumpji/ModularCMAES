@@ -3,13 +3,12 @@ from abc import abstractmethod, ABCMeta
 from collections import defaultdict
 from typing import Tuple, Optional, Type, Union
 
-import numpy as np
-import tensorflow as tf
-import tensorflow_probability as tfp
+from modcma.surrogate.regression_models.utils_tensorflow import *
 from sklearn.model_selection import KFold
 
 import modcma.surrogate.losses as losses
 from modcma.parameters import Parameters
+
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
 from modcma.surrogate.regression_models.model import SurrogateModelBase
@@ -33,9 +32,6 @@ Parabolic: Type[GP_kernel_concrete_base]
 ExponentialCurve: Type[GP_kernel_concrete_base]
 Constant: Type[GP_kernel_concrete_base]
 
-tfb = tfp.bijectors
-tfd = tfp.distributions
-psd_kernels = tfp.math.psd_kernels
 
 
 def optionally_create_random_state(
