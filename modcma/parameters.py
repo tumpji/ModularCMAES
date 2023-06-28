@@ -342,7 +342,7 @@ class Parameters(AnnotatedStruct):
 
     #########################################
     # surrogate - strategy
-    surrogate_strategy: ('Unsure', 'Random', 'DTS', None) = None
+    surrogate_strategy: ('Unsure', 'Random', 'DTS', None) = 'DTS'
     # TODO: Kendall
     surrogate_strategy_sort_type: (None, 'all', 'evaluated') = None
 

@@ -5,7 +5,7 @@ import numpy as np
 
 from modcma import Parameters
 from modcma.surrogate.regression_models import get_model
-from modcma.surrogate.regression_models.tests.test_regression_models import TestModelsBase
+from tests.surrogate.models.test_regression_models import TestModelsBase
 
 
 class Test_Linear_SurrogateModel(TestModelsBase):
