@@ -1,26 +1,30 @@
 import unittest
 import math
-from numpy.testing import assert_array_equal, assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal
+import numpy as np
 
-from modcma.surrogate.regression_models.model import *
+from modcma.surrogate.regression_models import LQ_SurrogateModel, get_model, SurrogateModelBase
+from modcma.parameters import Parameters
+#from modcma.surrogate.regression_models.model import *
 
 class Test_get_model(unittest.TestCase):
     def test_empty(self):
         p = Parameters(2)
-        m = get_model(p)
+        m = get_model(p.surrogate_model)(p)
         self.assertIsInstance(m, Linear_SurrogateModel)
 
     def test_Quandratic(self):
         p = Parameters(2)
         p.surrogate_model = 'Quadratic'
-        m = get_model(p)
+        m = get_model(p.surrogate_model)(p)
         self.assertIsInstance(m, Quadratic_SurrogateModel)
 
     def test_LQ(self):
         p = Parameters(2)
         p.surrogate_model = 'LQ'
-        m = get_model(p)
+        m = get_model(p.surrogate_model)(p)
         self.assertIsInstance(m, LQ_SurrogateModel)
+
 
 class TestModelsBase(unittest.TestCase):
     def train_model(self, X, Y):
@@ -39,10 +43,11 @@ class TestModelsBase(unittest.TestCase):
         Yt = self.model.predict(X)
         self.assertFalse(np.allclose(Y, Yt))
 
+
 class Test_Linear_SurrogateModel(TestModelsBase):
     def test_1(self) -> None:
         p = Parameters(2)
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([
             [1, 4], [2, 2],
@@ -55,11 +60,12 @@ class Test_Linear_SurrogateModel(TestModelsBase):
         Y = np.array([9, 1])
         self.try_model(X, Y)
 
+
 class Test_QuadraticPure_SurrogateModel(TestModelsBase):
     def test_1(self) -> None:
         p = Parameters(1)
         p.surrogate_model = 'QuadraticPure'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([
             [1], [2], [3], [4],
@@ -71,11 +77,12 @@ class Test_QuadraticPure_SurrogateModel(TestModelsBase):
         Y = np.array([31, 43])
         self.try_model(X, Y)
 
+
 class Test_QuadraticInteraction_SurrogateModel(TestModelsBase):
     def test_1(self) -> None:
         p = Parameters(2)
         p.surrogate_model = 'QuadraticInteraction'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([
             [0, 0], [1, 0], [0, 1], [1, 1]
@@ -87,12 +94,13 @@ class Test_QuadraticInteraction_SurrogateModel(TestModelsBase):
         Y = np.array([67, 79])
         self.try_model(X, Y)
 
+
 class Test_Quadratic_SurrogateModel(TestModelsBase):
     def test_1(self) -> None:
         # Intercept=1, 2 3 5 7 11
         p = Parameters(2)
         p.surrogate_model = 'Quadratic'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([
             [0, 0], [1, 0], [0, 1], [1, 1], [3, 0], [0, 3]
@@ -108,11 +116,12 @@ class Test_Quadratic_SurrogateModel(TestModelsBase):
         Y = np.array([201, 1723])
         self.try_model(X, Y)
 
+
 class Test_LQ_SurrogateModel(TestModelsBase):
     def test_1_small(self):
         p = Parameters(2)
         p.surrogate_model = 'LQ'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([[0, 0], [1, 0]])
         Y = np.array([1, 3])
@@ -128,7 +137,7 @@ class Test_LQ_SurrogateModel(TestModelsBase):
     def test_2_full_linear(self):
         p = Parameters(2)
         p.surrogate_model = 'LQ'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([[0, 0], [1, 0], [0, 1]])
         Y = np.array([1, 3, 2])
@@ -144,7 +153,7 @@ class Test_LQ_SurrogateModel(TestModelsBase):
     def test_2_full_linear_neg_case(self):
         p = Parameters(2)
         p.surrogate_model = 'LQ'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([[0, 0], [1, 0], [2, 0]])
         Y = np.array([1, 1+1, 1+4])
@@ -160,7 +169,7 @@ class Test_LQ_SurrogateModel(TestModelsBase):
     def test_2_quadratic_pure_exist_quad(self):
         p = Parameters(2)
         p.surrogate_model = 'LQ'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([[0, 0], [1, 0],
                       [2, 0], [3, 0],
@@ -179,7 +188,7 @@ class Test_LQ_SurrogateModel(TestModelsBase):
     def test_2_quadratic_pure_ne_exist(self):
         p = Parameters(2)
         p.surrogate_model = 'LQ'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.array([[0, 0], [1, 0],
                       [2, 0], [3, 0],
@@ -215,7 +224,7 @@ class Test_LQ_SurrogateModel(TestModelsBase):
     def test_3_quadratic_full(self):
         p = Parameters(3)
         p.surrogate_model = 'LQ'
-        self.model = get_model(p)
+        self.model = get_model(p.surrogate_model)(p)
 
         X = np.random.randn(12, 3)
         Y = + 11*X[:, 0]**2 \
@@ -262,10 +271,9 @@ class Test_LQ_SurrogateModel(TestModelsBase):
         p = Parameters(4)
         p.surrogate_model = 'LQ'
 
-
         for margin in [1.5, 2.0, 1.]:
             p.surrogate_model_lq_margin = margin
-            self.model = get_model(p)
+            self.model = get_model(p.surrogate_model)(p)
 
             #N = 1
             #self.assertEqual(0, train_and_return(N))
@@ -281,6 +289,7 @@ class Test_LQ_SurrogateModel(TestModelsBase):
             self.assertEqual(1, train_and_return(N))
             N += 1
             self.assertEqual(2, train_and_return(N))
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

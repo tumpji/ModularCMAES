@@ -1,15 +1,14 @@
-import numpy as np
-
-from sklearn.pipeline import Pipeline
-
 from abc import abstractmethod, ABCMeta
 from typing import Optional, Tuple
 
+import numpy as np
+from sklearn.pipeline import Pipeline
 from typing_extensions import override
+
+from modcma.parameters import Parameters
 from modcma.typing_utils import XType, YType
 from modcma.utils import normalize_string
 
-from modcma.parameters import Parameters
 
 ####################
 # Helper functions

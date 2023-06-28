@@ -1,24 +1,19 @@
-from abc import abstractmethod, ABCMeta
-from typing import Tuple, Optional, Type, Union
 import copy
+from abc import abstractmethod, ABCMeta
 from collections import defaultdict
+from typing import Tuple, Optional, Type, Union
 
 import numpy as np
-
 import tensorflow as tf
 import tensorflow_probability as tfp
-
 from sklearn.model_selection import KFold
 
-from modcma.typing_utils import XType, YType
-from modcma.parameters import Parameters
-
 import modcma.surrogate.losses as losses
-
+from modcma.parameters import Parameters
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
-
 from modcma.surrogate.regression_models.model import SurrogateModelBase
+from modcma.typing_utils import XType, YType
 
 for k in basic_kernels + functor_kernels:
     locals()[k.__name__] = k

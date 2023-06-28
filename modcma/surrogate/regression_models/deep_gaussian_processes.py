@@ -4,7 +4,7 @@ import dgpsi
 import numpy as np
 
 from modcma import Parameters
-from modcma.surrogate.regression_models import SurrogateModelBase
+from modcma.surrogate.regression_models.model import SurrogateModelBase
 from modcma.typing_utils import XType, YType
 
 

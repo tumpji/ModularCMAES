@@ -1,15 +1,14 @@
-import numpy as np
+from typing import Optional
 
+import numpy as np
 from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
-
-from typing import Optional
 from typing_extensions import override
 
 from modcma.surrogate.regression_models import SklearnSurrogateModelBase, SurrogateModelBase
-from modcma.typing_utils import XType, YType, NDArrayFloat
+from modcma.typing_utils import XType, YType
 
 
 # TODO: add lasso and ridge regression
