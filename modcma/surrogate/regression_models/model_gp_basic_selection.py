@@ -32,18 +32,13 @@ ExponentialCurve: Type[GP_kernel_concrete_base]
 Constant: Type[GP_kernel_concrete_base]
 
 
-
-# class _GaussianProcessModelMixtureBase:
-
 class _GaussianProcessModelSelectionBase(SurrogateModelBase):
     # TODO: RENAME
 
     def __init__(self, parameters: Parameters) -> None:
-        self.parameters = parameters
+        super().__init__(parameters)
         self.MAX_MODELS = self.parameters.surrogate_model_selection_max_models
         self.MAX_TIME = self.parameters.surrogate_model_selection_max_seconds
-        self.random_state = np.random.RandomState(
-            self.parameters.surrogate_model_selection_random_state)
 
         # the selection ...
         self._building_blocks: List[Type[GP_kernel_concrete_base]] = [
@@ -68,7 +63,7 @@ class _GaussianProcessModelSelectionBase(SurrogateModelBase):
     def _shuffle_kernel_space(self):
         space = np.array(list(self._generate_kernel_space()))
         if self.parameters.surrogate_model_selection_randomization:
-            self.random_state.shuffle(space)
+            self.parameters.numpy_rng.shuffle(space)
         yield from space
 
     def _fit(self, X: XType, F: YType, W: YType):
@@ -115,7 +110,7 @@ class GaussianProcessBasicSelection(_GaussianProcessModelSelectionBase):
 
 
 class GaussianProcessBasicAdditiveSelection(_GaussianProcessModelSelectionBase):
-    ''' <model> Gaussian Process model that chooses the best addition of two kernels'''
+    """ <model> Gaussian Process model that chooses the best addition of two kernels"""
 
     def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
         yield from super()._generate_kernel_space()
@@ -126,7 +121,7 @@ class GaussianProcessBasicAdditiveSelection(_GaussianProcessModelSelectionBase):
 
 
 class GaussianProcessBasicMultiplicativeSelection(_GaussianProcessModelSelectionBase):
-    ''' <model> Gaussian Process model that chooses the best multiplication of two kernels'''
+    """ <model> Gaussian Process model that chooses the best multiplication of two kernels"""
 
     def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
         yield from super()._generate_kernel_space()
@@ -137,8 +132,8 @@ class GaussianProcessBasicMultiplicativeSelection(_GaussianProcessModelSelection
 
 
 class GaussianProcessBasicBinarySelection(_GaussianProcessModelSelectionBase):
-    ''' <model> Gaussian Process model that chooses the best
-    addition or multiplication of two kernels'''
+    """ <model> Gaussian Process model that chooses the best
+    addition or multiplication of two kernels"""
 
     def _generate_kernel_space(self) -> Generator[Type[GP_kernel_concrete_base], None, None]:
         yield from super()._generate_kernel_space()
@@ -155,12 +150,12 @@ class GaussianProcessBasicBinarySelection(_GaussianProcessModelSelectionBase):
 
 
 class GaussianProcessGreedySearch(_GaussianProcessModelSelectionBase):
-    ''' Expands the best node (based on the loss)
+    """ Expands the best node (based on the loss)
         The limit is:
             a) the best node is already expanded
             b) time
             c) number of expansion of kernels
-    '''
+    """
 
     def _expand_node(self, base_kernel):
         if base_kernel is None:
@@ -173,7 +168,7 @@ class GaussianProcessGreedySearch(_GaussianProcessModelSelectionBase):
     def _shuffle_expand_node(self, base_kernel):
         space = np.array(list(self._expand_node(base_kernel)))
         if self.parameters.surrogate_model_selection_randomization:
-            self.random_state.shuffle(space)
+            self.parameters.numpy_rng.shuffle(space)
         yield from space
 
     def _init_time(self):
@@ -236,9 +231,9 @@ class GaussianProcessGreedySearch(_GaussianProcessModelSelectionBase):
 
 
 class GaussianProcessHeuristic(GaussianProcessGreedySearch):
-    ''' Expands the best promissing node (based on the loss) up to the limit
+    """ Expands the best promissing node (based on the loss) up to the limit
         The limit is a) time b) number of expansion of kernels
-    '''
+    """
 
     def _search_method(self, X: XType, F: YType, W: YType):
         # implements greedy search
