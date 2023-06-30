@@ -330,6 +330,10 @@ class Parameters(AnnotatedStruct):
     # TODO: change for surrogate_strategy_DTS_min_samples_for_surrogate
     # surrogate_data_minimum_samples: int = None
 
+    # TODO: add optional E[X] = 0
+    # surrogate_data_normalize_X = False
+    # surrogate_data_normalize_F = False
+
     #########################################
     #   MAPPING of the surrogate's data
     #    The conditioning in objective function can be high enough so most of the training samples became irrelevant.
@@ -342,7 +346,7 @@ class Parameters(AnnotatedStruct):
 
     #########################################
     # surrogate - strategy
-    surrogate_strategy: ('Unsure', 'Random', 'DTS', None) = None
+    surrogate_strategy: ('Unsure', 'Random', 'DTS', None) = 'DTS'
     # TODO: Kendall
     surrogate_strategy_sort_type: (None, 'all', 'evaluated') = None
 
@@ -385,7 +389,7 @@ class Parameters(AnnotatedStruct):
     # surrogate -  models
     surrogate_model: ('Linear', 'Quadratic', 'QuadraticPure', 'QuadraticInteraction', 'LQ', 'GP', 'DGP') = 'Linear'
     surrogate_model_gp_kernel = 'Linear'
-    surrogate_model_gp_noisy_samples: bool = True
+    surrogate_model_gp_noisy_samples: bool = False
 
     # only for specific models
     surrogate_model_selection_criteria: ('LogLikelihood', 'RDE', 'SRDE', 'ESRDE', 'L1', 'L2', 'Kendall') = 'L2'
@@ -420,9 +424,11 @@ class Parameters(AnnotatedStruct):
         "bound_correction",
     )
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, seed=None, **kwargs) -> None:
         """Intialize parameters. Calls sub constructors for different parameter types."""
         super().__init__(*args, **kwargs)
+        if self.numpy_rng is None:
+            self.numpy_rng = np.random.default_rng(seed=seed)
         self.init_selection_parameters()
         self.init_fixed_parameters()
         self.init_adaptation_parameters()

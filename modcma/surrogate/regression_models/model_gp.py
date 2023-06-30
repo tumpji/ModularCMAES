@@ -1,25 +1,19 @@
-from abc import abstractmethod, ABCMeta
-from typing import Tuple, Optional, Type, Union, TYPE_CHECKING
 import copy
+from abc import abstractmethod, ABCMeta
 from collections import defaultdict
+from typing import Tuple, Optional, Type, Union
 
-import numpy as np
-
-import tensorflow as tf
-import tensorflow_probability as tfp
-import dgpsi
-
+from modcma.surrogate.regression_models.utils_tensorflow import *
 from sklearn.model_selection import KFold
 
-from modcma.typing_utils import XType, YType
-from modcma.parameters import Parameters
-
 import modcma.surrogate.losses as losses
+from modcma.parameters import Parameters
 
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
-
 from modcma.surrogate.regression_models.model import SurrogateModelBase
+from modcma.surrogate.regression_models.utils_tensorflow import create_positive_variable, create_constant
+from modcma.typing_utils import XType, YType
 
 for k in basic_kernels + functor_kernels:
     locals()[k.__name__] = k
@@ -38,31 +32,6 @@ Parabolic: Type[GP_kernel_concrete_base]
 ExponentialCurve: Type[GP_kernel_concrete_base]
 Constant: Type[GP_kernel_concrete_base]
 
-tfb = tfp.bijectors
-tfd = tfp.distributions
-psd_kernels = tfp.math.psd_kernels
-
-
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
-
-def create_positive_variable(default, dtype=tf.float64, name=None):
-    if isinstance(default, (float, int)):
-        default = tf.constant(default, dtype=dtype)
-
-    bijector = tfb.Shift(np.finfo(np.float64).tiny)(tfb.Exp())
-
-    return tfp.util.TransformedVariable(
-        initial_value=default,
-        bijector=bijector,
-        dtype=dtype,
-        name=name,
-    )
-
-
-def create_constant(default, dtype=tf.float64, name: Optional[str] = None):
-    return tf.constant(default, dtype=dtype, name=name)
 
 
 # ###############################################################################
@@ -388,55 +357,3 @@ class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
         # loads the kernel form settings
         KERNEL_CLS = eval(self.parameters.surrogate_model_gp_kernel)
         _GaussianProcessModel.__init__(self, parameters, KERNEL_CLS)
-
-
-class DeepGaussianProcessStochImp(SurrogateModelBase):
-    ModelName = "DGP"
-
-    def __init__(self, parameters: Parameters):
-        super().__init__(parameters)
-
-        # TODO load from parameters
-
-        self.training_iter = 50
-        self.num_imputations = 100
-        self.prediction_method = "mean_var"
-
-        lay1 = [
-            dgpsi.kernel(length=np.array([1]), name='sexp'),
-            dgpsi.kernel(length=np.array([1]), name='sexp')
-        ]
-        lay2 = [
-            dgpsi.kernel(length=np.array([1]), name='sexp', connect=np.arange(2)),
-            dgpsi.kernel(length=np.array([1]), name='sexp', connect=np.arange(2))
-        ]
-        lay3 = [
-            dgpsi.kernel(length=np.array([1]), name='sexp', scale_est=True, connect=None)
-        ]
-        self.deep_gp_layers = dgpsi.combine(lay1, lay3)
-
-    def _fit(self, X: Optional[XType], F: Optional[YType], W: Optional[YType] = None):
-        if F.ndim == 1:
-            F = np.expand_dims(F, axis=-1)
-        assert F.ndim == 2
-
-        self.model = dgpsi.dgp(X, F, self.deep_gp_layers)
-        self.model.train(N=self.training_iter)
-
-        dgp_layers_est = self.model.estimate()
-        self.emulator = dgpsi.emulator(dgp_layers_est, N=self.num_imputations)
-
-        return self
-
-    def _predict(self, X: XType) -> YType:
-        mean, _ = self._predict_with_confidence(X)
-        return mean
-
-    def _predict_with_confidence(self, X: XType) -> Tuple[YType, YType]:
-        mean, variance = self.emulator.predict(x=X, method=self.prediction_method)
-        return mean, variance
-
-    @property
-    def df(self) -> int:
-        # TODO count degree of freedom
-        return 0

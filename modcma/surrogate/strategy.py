@@ -13,7 +13,7 @@ from modcma.surrogate.acquisition import get_acquisition
 from modcma.utils import normalize_string
 from modcma.surrogate.data import SurrogateData_V2
 from modcma.typing_utils import XType, YType, yType
-from modcma.surrogate.regression_models.model import SurrogateModelBase, get_model
+from modcma.surrogate.regression_models import SurrogateModelBase, get_model
 
 if TYPE_CHECKING:
     from ..modularcmaes import ModularCMAES
@@ -32,7 +32,7 @@ class SurrogateStrategyBase(metaclass=ABCMeta):
 
         self.data = SurrogateData_V2(self.parameters)
 
-        self._model: SurrogateModelBase = get_model(self.parameters)
+        self._model: SurrogateModelBase = get_model(self.parameters.surrogate_model)(self.parameters)
         self._load_strategy_parameters()
 
     def _load_strategy_parameters(self):

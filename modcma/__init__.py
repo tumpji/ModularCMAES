@@ -1,8 +1,8 @@
 """Entrypoint of Modular CMA-ES package."""
 
+from .parameters import Parameters, BIPOPParameters
 from .asktellcmaes import AskTellCMAES
 from .modularcmaes import ModularCMAES, evaluate_bbob, fmin
-from .parameters import Parameters, BIPOPParameters
 from .population import Population
 from .sampling import (
     gaussian_sampling,

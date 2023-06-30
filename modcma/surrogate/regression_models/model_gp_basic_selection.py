@@ -1,18 +1,17 @@
-from abc import abstractmethod, ABCMeta
-from typing import Tuple, Optional, Type, List, Generator, Any
-from dataclasses import field, dataclass
 import itertools
 import time
+from abc import abstractmethod
+from dataclasses import field, dataclass
+from typing import Tuple, Optional, Type, List, Generator, Any
 
 import numpy as np
 
 from modcma.parameters import Parameters
-from modcma.typing_utils import XType, YType
-from modcma.surrogate.regression_models.model import SurrogateModelBase
-from modcma.surrogate.regression_models.model_gp import _GaussianProcessModel
-
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
+from modcma.surrogate.regression_models.model import SurrogateModelBase
+from modcma.surrogate.regression_models.model_gp import _GaussianProcessModel
+from modcma.typing_utils import XType, YType
 
 for k in basic_kernels + functor_kernels:
     locals()[k.__name__] = k
@@ -51,9 +50,9 @@ class _GaussianProcessModelSelectionBase(SurrogateModelBase):
             Linear,
             Quadratic,
             #### #Cubic,
-            #Parabolic,
-            #ExponentialCurve,
-            #Constant,
+            # Parabolic,
+            # ExponentialCurve,
+            # Constant,
         ]
 
     @abstractmethod
@@ -265,4 +264,3 @@ class GaussianProcessHeuristic(GaussianProcessGreedySearch):
         all_nodes.sort()
         best_state = all_nodes[0].kernel
         return best_state if best_state is not None else Constant
-
