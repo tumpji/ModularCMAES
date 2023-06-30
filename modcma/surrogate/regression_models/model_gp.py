@@ -65,17 +65,6 @@ def create_constant(default, dtype=tf.float64, name: Optional[str] = None):
     return tf.constant(default, dtype=dtype, name=name)
 
 
-def optionally_create_random_state(
-        random_state: Optional[Union[int, np.random.RandomState]],
-        default_int: Optional[int] = None
-):
-    if random_state is None and default_int is not None:
-        return np.random.RandomState(default_int)
-    if random_state is None or isinstance(random_state, int):
-        return np.random.RandomState(random_state)
-    return random_state
-
-
 # ###############################################################################
 # ### MODEL BUILDING COMPOSITION MODELS
 # ###############################################################################
@@ -86,11 +75,10 @@ class _ModelBuildingBase(metaclass=ABCMeta):
         - adds makes noisy / noiseless model
     """
 
-    def __init__(self, parameters, kernel_cls, random_state=None):
+    def __init__(self, parameters, kernel_cls):
         self.parameters = parameters
         self.kernel_cls = kernel_cls
         self.mean_fn = None
-        self.random_state = optionally_create_random_state(random_state)
 
         # default
         self.observation_index_points = None
@@ -186,12 +174,9 @@ class NoFold:
 class _ModelTrainingBase(metaclass=ABCMeta):
     """ provides training and loss prediction """
 
-    def __init__(self,
-                 parameters: Parameters,
-                 random_state=None):
+    def __init__(self, parameters: Parameters):
         self.parameters = parameters
         self.training_cache = defaultdict(list)
-        self.random_state = optionally_create_random_state(random_state)
 
         self.FOLDS: int = self.parameters.surrogate_model_selection_cross_validation_folds
 
@@ -241,7 +226,7 @@ class _ModelTrainingBase(metaclass=ABCMeta):
         return KFold(
             n_splits=min(self.FOLDS, len(X)),
             shuffle=True,
-            random_state=self.random_state
+            random_state=self.parameters.numpy_rng
         )
 
     @abstractmethod
@@ -256,10 +241,8 @@ class _ModelTrainingBase(metaclass=ABCMeta):
 class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
     """ implements maximum likelihood training for GP """
 
-    def __init__(self,
-                 parameters: Parameters,
-                 random_state=None):
-        super().__init__(parameters, random_state=random_state)
+    def __init__(self, parameters: Parameters):
+        super().__init__(parameters)
 
         self.LEARNING_RATE = self.parameters.surrogate_model_gp_learning_rate
         self.MAX_ITERATIONS = self.parameters.surrogate_model_gp_max_iterations
@@ -364,27 +347,17 @@ class _ModelTraining_MaximumLikelihood(_ModelTrainingBase):
 class _GaussianProcessModel:
     """ gaussian process wihtout known kernel """
 
-    def __init__(self,
-                 parameters: Parameters,
-                 kernel_cls,
-                 random_state: Optional[Union[int, np.random.RandomState]] = None
-                 ):
+    def __init__(self, parameters: Parameters, kernel_cls):
         self.parameters = parameters
         self.KERNEL_CLS = kernel_cls
         self.MODEL_GENERATION_CLS = _ModelBuildingBase.create_class(self.parameters)
         self.MODEL_TRAINING_CLS = _ModelTrainingBase.create_class(self.parameters)
 
-        self.random_state = optionally_create_random_state(random_state)
-
         self.model = self.MODEL_GENERATION_CLS(
             self.parameters,
             self.KERNEL_CLS,
-            random_state=self.random_state
         )
-        self.model_training = self.MODEL_TRAINING_CLS(
-            self.parameters,
-            random_state=self.random_state
-        )
+        self.model_training = self.MODEL_TRAINING_CLS(self.parameters)
 
     def compute_loss(self, X: XType, F: YType, W: YType):
         return self.model_training.compute_loss(self.model, X, F, W)
@@ -410,14 +383,11 @@ class _GaussianProcessModel:
 class GaussianProcess(_GaussianProcessModel, SurrogateModelBase):
     """ <model> Gaussian Process with kernel defined in surrogate_model_gp_kernel """
 
-    def __init__(self,
-                 parameters: Parameters,
-                 random_state: Optional[Union[int, np.random.RandomState]] = None
-                 ):
+    def __init__(self, parameters: Parameters):
         SurrogateModelBase.__init__(self, parameters)
         # loads the kernel form settings
         KERNEL_CLS = eval(self.parameters.surrogate_model_gp_kernel)
-        _GaussianProcessModel.__init__(self, parameters, KERNEL_CLS, random_state=random_state)
+        _GaussianProcessModel.__init__(self, parameters, KERNEL_CLS)
 
 
 class DeepGaussianProcessStochImp(SurrogateModelBase):
