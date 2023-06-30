@@ -368,9 +368,9 @@ class Parameters(AnnotatedStruct):
     surrogate_strategy_Kendall_minimum_eval_absolute: int = 1
     #       only the top ?? from the queue will enter the model training
     surrogate_strategy_Kendall_truncation_ratio: float = 0.75
-    #       every iteration evaluate etxtra from total num. of eval.
-    surrogate_strategy_Kendall_iterative_increse: float = 0.5
-    #       minimum number of samples to make model pass  the kanall test
+    #       every iteration evaluate extra from total num. of eval.
+    surrogate_strategy_Kendall_iterative_increase: float = 0.5
+    #       minimum number of samples to make model pass  the kendall test
     surrogate_strategy_Kendall_tau_minimum_samples: int = 3
     #       the size of a training dataset for testing the model
     surrogate_strategy_Kendall_tau_training_size_relative: float = 1.2

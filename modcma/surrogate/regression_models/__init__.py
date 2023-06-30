@@ -1,21 +1,20 @@
-from typing import Type
+import typing
 
-from modcma.surrogate.regression_models.deep_gaussian_processes import DeepGaussianProcessStochImp
-from modcma.surrogate.regression_models.model import SklearnSurrogateModelBase
-from modcma.surrogate.regression_models.model import SurrogateModelBase
-from modcma.surrogate.regression_models.model_gp import GaussianProcess
-from modcma.surrogate.regression_models.model_gp_basic_selection import GaussianProcessBasicAdditiveSelection
-from modcma.surrogate.regression_models.model_gp_basic_selection import GaussianProcessBasicBinarySelection
-from modcma.surrogate.regression_models.model_gp_basic_selection import GaussianProcessBasicMultiplicativeSelection
-from modcma.surrogate.regression_models.model_gp_basic_selection import GaussianProcessBasicSelection
-from modcma.surrogate.regression_models.model_gp_basic_selection import GaussianProcessGreedySearch
-from modcma.surrogate.regression_models.model_gp_basic_selection import GaussianProcessHeuristic
-from modcma.surrogate.regression_models.polynomial import Linear_SurrogateModel, QuadraticPure_SurrogateModel, \
-    QuadraticInteraction_SurrogateModel, Quadratic_SurrogateModel, LQ_SurrogateModel
-from modcma.utils import normalize_string, all_subclasses, normalize_str_eq
+from modcma.surrogate.regression_models.model import \
+    SurrogateModelBase, \
+    SklearnSurrogateModelBase
 
+from modcma.surrogate.regression_models.polynomial import \
+    Linear_SurrogateModel, \
+    QuadraticPure_SurrogateModel, \
+    QuadraticInteraction_SurrogateModel, \
+    Quadratic_SurrogateModel, \
+    LQ_SurrogateModel
 
-def get_model(model_name: str) -> Type[SurrogateModelBase]:
+from modcma.surrogate.regression_models.gaussian_processes import *
+
+def get_model(model_name: str) -> typing.Type[SurrogateModelBase]:
+    from modcma.utils import normalize_string, all_subclasses, normalize_str_eq
     sur_model_to_find = normalize_string(model_name)
 
     sur_model_classes = all_subclasses(SurrogateModelBase)
@@ -26,26 +25,3 @@ def get_model(model_name: str) -> Type[SurrogateModelBase]:
 
     raise NotImplementedError(
         f'Cannot find model with name "{model_name}"')
-
-
-__all__ = (
-    'get_model',
-    'SurrogateModelBase',
-    'SklearnSurrogateModelBase',
-
-    'Linear_SurrogateModel',
-    'QuadraticPure_SurrogateModel',
-    'QuadraticInteraction_SurrogateModel',
-    'Quadratic_SurrogateModel',
-    'LQ_SurrogateModel',
-
-    'GaussianProcess',
-    'DeepGaussianProcessStochImp',
-
-    'GaussianProcessBasicSelection',
-    'GaussianProcessBasicAdditiveSelection',
-    'GaussianProcessBasicMultiplicativeSelection',
-    'GaussianProcessBasicBinarySelection',
-    'GaussianProcessGreedySearch',
-    'GaussianProcessHeuristic'
-)

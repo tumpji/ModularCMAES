@@ -1,9 +1,9 @@
 import copy
 from abc import abstractmethod, ABCMeta
 from collections import defaultdict
-from typing import Tuple, Optional, Type, Union
+from typing import Tuple, Type
 
-from modcma.surrogate.regression_models.utils_tensorflow import *
+from modcma.surrogate.regression_models.gaussian_processes.utils_tensorflow import *
 from sklearn.model_selection import KFold
 
 import modcma.surrogate.losses as losses
@@ -12,7 +12,7 @@ from modcma.parameters import Parameters
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
 from modcma.surrogate.regression_models.model import SurrogateModelBase
-from modcma.surrogate.regression_models.utils_tensorflow import create_positive_variable, create_constant
+from modcma.surrogate.regression_models.gaussian_processes.utils_tensorflow import create_positive_variable, create_constant
 from modcma.typing_utils import XType, YType
 
 for k in basic_kernels + functor_kernels:

@@ -10,7 +10,7 @@ from modcma.parameters import Parameters
 # import kernels
 from modcma.surrogate.gp_kernels import basic_kernels, functor_kernels, GP_kernel_concrete_base
 from modcma.surrogate.regression_models.model import SurrogateModelBase
-from modcma.surrogate.regression_models.model_gp import _GaussianProcessModel
+from modcma.surrogate.regression_models.gaussian_processes.model_gp import _GaussianProcessModel
 from modcma.typing_utils import XType, YType
 
 for k in basic_kernels + functor_kernels:

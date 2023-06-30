@@ -6,7 +6,7 @@ import numpy as np
 from modcma import Parameters
 from modcma.surrogate.regression_models import GaussianProcessBasicSelection, GaussianProcessBasicAdditiveSelection, \
     GaussianProcessBasicMultiplicativeSelection, GaussianProcessBasicBinarySelection
-from modcma.surrogate.regression_models.model_gp import Quadratic, Linear, ExpSinSquared
+from surrogate.regression_models.gaussian_processes.model_gp import Quadratic, Linear, ExpSinSquared
 
 
 class Test_GaussianProcessBasicSelection(unittest.TestCase):

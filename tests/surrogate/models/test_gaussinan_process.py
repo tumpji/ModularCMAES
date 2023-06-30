@@ -7,8 +7,8 @@ import tensorflow as tf
 tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 
-from modcma.surrogate.regression_models.model_gp import *
-from modcma.surrogate.regression_models.model_gp_basic_selection import *
+from modcma.surrogate.regression_models.gaussian_processes.model_gp import *
+from modcma.surrogate.regression_models.gaussian_processes.model_gp_basic_selection import *
 
 import unittest
 
