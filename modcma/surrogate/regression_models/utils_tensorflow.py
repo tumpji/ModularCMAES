@@ -1,6 +1,7 @@
 from typing import Optional
 
 import os
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import numpy as np
@@ -10,6 +11,7 @@ import tensorflow_probability as tfp
 tfb = tfp.bijectors
 tfd = tfp.distributions
 psd_kernels = tfp.math.psd_kernels
+
 
 def create_positive_variable(default, dtype=tf.float64, name=None):
     """ creates positive variable though bijectors """

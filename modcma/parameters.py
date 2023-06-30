@@ -389,7 +389,7 @@ class Parameters(AnnotatedStruct):
     # surrogate -  models
     surrogate_model: ('Linear', 'Quadratic', 'QuadraticPure', 'QuadraticInteraction', 'LQ', 'GP', 'DGP') = 'Linear'
     surrogate_model_gp_kernel = 'Linear'
-    surrogate_model_gp_noisy_samples: bool = True
+    surrogate_model_gp_noisy_samples: bool = False
 
     # only for specific models
     surrogate_model_selection_criteria: ('LogLikelihood', 'RDE', 'SRDE', 'ESRDE', 'L1', 'L2', 'Kendall') = 'L2'
