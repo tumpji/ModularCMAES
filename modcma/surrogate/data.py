@@ -1,21 +1,24 @@
-import numpy as np
-
+import collections.abc
+import math
+from dataclasses import dataclass
 from typing import Union, Optional
+
+import numpy as np
+import sklearn.model_selection
 
 from modcma.parameters import Parameters
 from modcma.typing_utils import XType, YType, NDArrayInt, NDArrayBool
-
 from modcma.utils import normalize_str_eq
 
 
 class SurrogateDataBase:
     FIELDS = ['_X', '_F', '_TIME']
 
-    def __init__(self, settings: Parameters):
-        self.settings = settings
+    def __init__(self, parameters: Parameters):
+        self.parameters = parameters
 
         # (#Samples, Dimensions)
-        self._X: XType = np.empty((0, settings.d), dtype=np.float64)
+        self._X: XType = np.empty((0, parameters.d), dtype=np.float64)
         self._F: YType = np.empty((0, 1), dtype=np.float64)
         self._TIME: NDArrayInt = np.empty((0, 1), dtype=np.int_)
         self._act_time = 0
@@ -23,11 +26,11 @@ class SurrogateDataBase:
     def push(self, x, f: Union[YType, float]):
         """ Push element to the archive """
         self._act_time += 1
-        x = np.array(x).reshape(1, self.settings.d)
+        x = np.array(x).reshape(1, self.parameters.d)
         f = np.array(f).reshape(1, 1)
 
         # checks for equality
-        if self.settings.surrogate_data_equality_removal:
+        if self.parameters.surrogate_data_equality_removal:
             if np.any(np.all(np.equal(self._X, x), axis=1)):
                 return
 
@@ -39,11 +42,11 @@ class SurrogateDataBase:
         """ Push multiple elements into the archive """
         self._act_time += 1
         F = np.array(F).reshape(-1, 1)
-        assert (X.shape[1] == self.settings.d)
+        assert (X.shape[1] == self.parameters.d)
         assert (X.shape[0] == F.shape[0])
 
         # checks for equality
-        if self.settings.surrogate_data_equality_removal:
+        if self.parameters.surrogate_data_equality_removal:
             selection = [np.any(np.all(np.equal(self._X, x), axis=1)) for x in X]
             F = F[selection]
             X = X[selection]
@@ -73,11 +76,11 @@ class SurrogateDataBase:
         return self._F.shape[0]
 
     def _to_mahalanobis(self, X):
-        return (X - self.settings.m.T) @ self.settings.inv_root_C.T
+        return (X - self.parameters.m.T) @ self.parameters.inv_root_C.T
 
     def _compute_order_measure(self, selection: slice = slice(None)) -> YType:
         """ returns the preference for the samples """
-        sort_method = self.settings.surrogate_data_sorting
+        sort_method = self.parameters.surrogate_data_sorting
 
         if normalize_str_eq(sort_method, 'time'):
             measure = -self._TIME[selection]
@@ -133,8 +136,8 @@ class SurrogateData_V1(SurrogateDataBase):
     def _max_training_size(self) -> int:
         """ number of samples selected for training a surrogate model """
         # absolute max
-        if self.settings.surrogate_data_max_size_absolute is not None:
-            return min(len(self), self.settings.surrogate_data_max_size_absolute)
+        if self.parameters.surrogate_data_max_size_absolute is not None:
+            return min(len(self), self.parameters.surrogate_data_max_size_absolute)
         return len(self)
 
     @property
@@ -148,18 +151,18 @@ class SurrogateData_V1(SurrogateDataBase):
 
     @property
     def W(self):  # Weight
-        if self.settings.surrogate_data_weighting == 'constant':
+        if self.parameters.surrogate_data_weighting == 'constant':
             return np.ones(self._max_training_size)
-        elif self.settings.surrogate_data_weighting == 'logarithmic':
-            assert self.settings.surrogate_data_min_weight > 0.
-            assert self.settings.surrogate_data_max_weight > 0.
-            return np.logspace(np.log10(self.settings.surrogate_data_max_weight),
-                               np.log10(self.settings.surrogate_data_min_weight),
+        elif self.parameters.surrogate_data_weighting == 'logarithmic':
+            assert self.parameters.surrogate_data_min_weight > 0.
+            assert self.parameters.surrogate_data_max_weight > 0.
+            return np.logspace(np.log10(self.parameters.surrogate_data_max_weight),
+                               np.log10(self.parameters.surrogate_data_min_weight),
                                num=self._max_training_size)
             pass
-        elif self.settings.surrogate_data_weighting == 'linear':
-            return np.linspace(self.settings.surrogate_data_min_weight,
-                               self.settings.surrogate_data_max_weight,
+        elif self.parameters.surrogate_data_weighting == 'linear':
+            return np.linspace(self.parameters.surrogate_data_min_weight,
+                               self.parameters.surrogate_data_max_weight,
                                num=self._max_training_size)
         else:
             raise NotImplementedError("Couldn't interpret the weight_function")
@@ -169,8 +172,8 @@ class SurrogateData_V2(SurrogateData_V1):
     """ Uses boolean selection instead of slices to extract data from the archive """
     FIELDS = ['_X', '_F', '_X_mahal', '_X_mahal_norm', '_TIME']
 
-    def __init__(self, settings):
-        super().__init__(settings)
+    def __init__(self, parameters):
+        super().__init__(parameters)
 
         # mahalanobis cache management
         self._X_mahal: Optional[XType] = None
@@ -185,10 +188,10 @@ class SurrogateData_V2(SurrogateData_V1):
         """ checks if the conversion to the mahalanobis space is up-to-date"""
         if self._X_mahal is None \
                 or len(self._X) != len(self._X_mahal) \
-                or self._converted_m != self.settings.m \
-                or self._converted_inv_root_C != self.settings.inv_root_C:
-            self._converted_m = self.settings.m
-            self._converted_inv_root_C = self.settings.inv_root_C
+                or self._converted_m != self.parameters.m \
+                or self._converted_inv_root_C != self.parameters.inv_root_C:
+            self._converted_m = self.parameters.m
+            self._converted_inv_root_C = self.parameters.inv_root_C
             self._X_mahal = self._to_mahalanobis(self._X)
             self._X_mahal_norm = None
 
@@ -220,7 +223,7 @@ class SurrogateData_V2(SurrogateData_V1):
 
     def _compute_order_measure(self, selection: slice = slice(None)) -> YType:
         """ returns the preference for the samples """
-        sort_method = self.settings.surrogate_data_sorting
+        sort_method = self.parameters.surrogate_data_sorting
 
         if normalize_str_eq(sort_method, 'mahalanobis'):
             self._update_X_mahal(compute_norm=True)
@@ -233,10 +236,10 @@ class SurrogateData_V2(SurrogateData_V1):
         """ computes indexes of training data """
         if self._selection_cache is None:
             # mahalanobis distance handling ...
-            if self.settings.surrogate_data_mahalanobis_space \
-               and self.settings.surrogate_data_mahalanobis_space_max_value is not None:
+            if self.parameters.surrogate_data_mahalanobis_space \
+                    and self.parameters.surrogate_data_mahalanobis_space_max_value is not None:
                 self._update_X_mahal(compute_norm=True)
-                mask = self._X_mahal_norm <= self.settings.surrogate_data_mahalanobis_space_max_value
+                mask = self._X_mahal_norm <= self.parameters.surrogate_data_mahalanobis_space_max_value
             else:
                 mask = np.ones(len(self))
 
@@ -250,7 +253,7 @@ class SurrogateData_V2(SurrogateData_V1):
 
     @property
     def X(self) -> Optional[XType]:  # Covariates
-        if self.settings.surrogate_data_mahalanobis_space:
+        if self.parameters.surrogate_data_mahalanobis_space:
             self._update_X_mahal()
             return self._X_mahal[self._selection]
         else:
@@ -264,18 +267,18 @@ class SurrogateData_V2(SurrogateData_V1):
     def W(self):  # Weight
         no_elems = len(self._selection)
 
-        if self.settings.surrogate_data_weighting == 'constant':
+        if self.parameters.surrogate_data_weighting == 'constant':
             return np.ones(no_elems)
-        elif self.settings.surrogate_data_weighting == 'logarithmic':
-            assert self.settings.surrogate_data_min_weight > 0.
-            assert self.settings.surrogate_data_max_weight > 0.
-            return np.logspace(np.log10(self.settings.surrogate_data_max_weight),
-                               np.log10(self.settings.surrogate_data_min_weight),
+        elif self.parameters.surrogate_data_weighting == 'logarithmic':
+            assert self.parameters.surrogate_data_min_weight > 0.
+            assert self.parameters.surrogate_data_max_weight > 0.
+            return np.logspace(np.log10(self.parameters.surrogate_data_max_weight),
+                               np.log10(self.parameters.surrogate_data_min_weight),
                                num=no_elems)
             pass
-        elif self.settings.surrogate_data_weighting == 'linear':
-            return np.linspace(self.settings.surrogate_data_min_weight,
-                               self.settings.surrogate_data_max_weight,
+        elif self.parameters.surrogate_data_weighting == 'linear':
+            return np.linspace(self.parameters.surrogate_data_min_weight,
+                               self.parameters.surrogate_data_max_weight,
                                num=no_elems)
         else:
             raise NotImplementedError("Couldn't interpret the weight_function")
