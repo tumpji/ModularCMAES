@@ -309,8 +309,9 @@ class Parameters(AnnotatedStruct):
     # The importance of weighting is determined by the
     #  - time - most recent samples are prioritized
     #  - lq - sort based on lowest value
-    #  - mahalanobis - sort based on distance to the population mean
-    surrogate_data_sorting: ('time', 'lq', 'mahalanobis') = 'time'
+    # -  euclidean - sort based on distance to the mean of current population
+    #  - mahalanobis - sort based on distance to the mean of current population (uses covariance matrix)
+    surrogate_data_sorting: ('time', 'lq', 'euclidean', 'mahalanobis') = 'time'
 
     #########################################
     #   FILTERING of the surrogate's training data

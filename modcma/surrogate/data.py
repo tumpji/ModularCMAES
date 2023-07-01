@@ -90,15 +90,16 @@ class SurrogateDataBase:
             measure = -self._TIME[selection, 0]
         elif normalize_str_eq(sort_method, 'lq'):
             measure = self._F[selection, 0]
+        elif normalize_str_eq(sort_method, 'euclidean'):
+            measure = np.sum(np.square(self._X[selection] - self.parameters.m.T), axis=1)
         elif normalize_str_eq(sort_method, 'mahalanobis'):
             measure = np.sum(np.square(self._to_mahalanobis(self._X[selection])), axis=1)
         else:
             raise NotImplementedError(f'The sorting method {sort_method} is not implemented.')
-
         return measure
 
     def sort_all(self):
-        """ sorts all elements based on surrogate_data_sorting """
+        """ sorts all elements based on surrogate_data_sorting, 'best' are in the last indexes """
         if len(self) <= 1:
             return
 
@@ -230,7 +231,7 @@ class SurrogateData_V2(SurrogateData_V1):
 
         if normalize_str_eq(sort_method, 'mahalanobis'):
             self._update_X_mahal(compute_norm=True)
-            return self._X_mahal_norm[selection]
+            return self._X_mahal_norm[selection, 0]
         else:
             return super()._compute_order_measure(selection)
 

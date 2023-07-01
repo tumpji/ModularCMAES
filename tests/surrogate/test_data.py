@@ -131,6 +131,32 @@ class Test_SurrogateData_V1_sort(unittest.TestCase):
         npt.assert_array_almost_equal(self.A.X, np.arange(20 * 5).reshape(-1, 5))
         npt.assert_array_almost_equal(self.A.F, np.arange(20).reshape(-1, 1))
 
+    def test_sort_euclidean(self):
+        self.S.surrogate_data_sorting = 'euclidean'
+        rng = np.random.default_rng(seed=42)
+        self.A.push_many(
+            rng.normal(0, 1, size=(20, 5)),
+            rng.normal(0, 1, size=(20, 1)),
+            time_ordered=True
+        )
+
+        self.A.sort_all()
+        best = np.inf
+        for x in self.A.X[::1]:
+            assert x.shape == (5,)
+            act = np.sum(np.square(x - self.A.parameters.m.ravel()))
+            self.assertLessEqual(act, best)
+            best = act
+
+        self.S.surrogate_data_max_size_absolute = 2
+        self.assertEqual(len(self.A.X), 2)
+        self.assertEqual(len(self.A.F), 2)
+
+        self.assertAlmostEqual(
+            np.sum(np.square(self.A.X[-1] - self.A.parameters.m.ravel())), best)
+
+
+
 '''
 
 class TestSurrogateData_V1(unittest.TestCase):
