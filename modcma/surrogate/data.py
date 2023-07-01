@@ -282,3 +282,60 @@ class SurrogateData_V2(SurrogateData_V1):
                                num=no_elems)
         else:
             raise NotImplementedError("Couldn't interpret the weight_function")
+
+
+class SurrogateData_V3(SurrogateData_V2):
+    """ Adds model selection to the mixture """
+
+    def set_up_model_selection(self):
+        return Folding(
+            self.parameters.surrogate_data_cross_validation_folds,
+            self.parameters.numpy_rng,
+            self.X, self.F, self.W,
+        )
+
+
+class Folding(collections.abc.Iterator):
+    @dataclass
+    class CrossValidationInstance:
+        Xtrain: XType
+        Xtest: XType
+        Ftrain: YType
+        Ftest: YType
+        Wtrain: YType
+        Wtest: YType
+
+    def __init__(self, parameters: Parameters, X: XType, F: YType, W: YType):
+        self.parameters: Parameters = parameters
+        self._X, self._F, self._W = X, F, W
+
+        self.folds: Optional[int] = self.parameters.surrogate_data_cross_validation_folds
+        self.train_test_ratio: float = self.parameters.surrogate_data_train_test_ratio
+        self.numpy_rng = self.parameters.numpy_rng
+
+        self.index: Optional[int] = None
+
+    def __iter__(self):
+        if self.folds is not None and self.folds > 1:
+            self._iterator = enumerate(sklearn.model_selection.KFold(
+                self.folds, shuffle=True, random_state=self.numpy_rng
+            ).split(self._X, self._F))
+        elif self.folds < 0:
+            raise ValueError("Negative values are not allowed to set number of folds")
+        else:
+            # Train-test split
+            h = np.arange(len(self._X))
+            self.numpy_rng.shuffle(h)
+            len_test = math.ceil(self.train_test_ratio * len(h))
+            self._iterator = iter(enumerate([(h[len_test:], h[:len_test]), ]))
+
+    def __next__(self):
+        self.index, (train_ind, test_ind) = next(self._iterator)
+        return Folding.CrossValidationInstance(
+            Xtrain=self._X[train_ind],
+            Xtest=self._X[test_ind],
+            Ytrain=self._F[train_ind],
+            Ytest=self._F[test_ind],
+            Wtrain=self._W[train_ind],
+            Wtest=self._W[test_ind]
+        )

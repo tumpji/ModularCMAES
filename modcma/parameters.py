@@ -334,6 +334,12 @@ class Parameters(AnnotatedStruct):
     # surrogate_data_normalize_X = False
     # surrogate_data_normalize_F = False
 
+    # If models selection is required, there are two options.
+    # The first option is to use cross-validation
+    surrogate_data_cross_validation_folds: int = 5
+    # The second option -- train-test split is active whenever the previous is None.
+    surrogate_data_train_test_ratio: float = 0.25
+
     #########################################
     #   MAPPING of the surrogate's data
     #    The conditioning in objective function can be high enough so most of the training samples became irrelevant.
