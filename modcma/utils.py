@@ -1,11 +1,18 @@
 """Implementation of various utilities used in ModularCMA-ES package."""
 
 import warnings
+
+from typing import Union, Dict, Tuple
 import typing
+
 from inspect import Signature, Parameter, getmodule
-from functools import wraps
+from functools import wraps, partial
 from time import time
 
+import collections
+from enum import StrEnum, auto
+
+import numpy.typing as npt
 import numpy as np
 
 
@@ -269,3 +276,48 @@ def normalize_str_eq(s1: str, s2: str):
 def all_subclasses(cls):
     return set(cls.__subclasses__()).union(
         [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+
+
+class AggregationMethod(StrEnum):
+    MEAN = auto()
+    MEDIAN = auto()
+
+
+class ResultCollector:
+    def __init__(self):
+        self.results = collections.defaultdict(list)
+        self.shapes: Dict[str, Tuple] = dict()
+
+    def provide_result(self, key: str, value: Union[float, npt.NDArray]):
+        if isinstance(value, (float, int)):
+            value = np.array([[value]], dtype=np.float64)
+
+        if key in self.shapes:
+            if self.shapes[key] != value.shape:
+                raise ValueError('ProvideResultOfIterator: shapes should not change during operation')
+        else:
+            self.shapes[key] = value.shape
+        value = value.reshape(1, -1)
+        self.results[key].append(value)
+
+    def get_result(self, key, aggregation_method: AggregationMethod = AggregationMethod.MEAN) -> npt.NDArray:
+        if aggregation_method == AggregationMethod.MEAN:
+            f = partial(np.mean, axis=0, keepdims=True)
+        elif aggregation_method == AggregationMethod.MEDIAN:
+            f = partial(np.median, axis=0, keepdims=True)
+        else:
+            raise ValueError("Unknown reduction method")
+
+        if key not in self.results:
+            raise KeyError(f'ResultCollector: there is no logged result with {key} key')
+        assert key in self.shapes
+
+        values = self.results[key]
+        shape = self.shapes[key]
+        return f(values).reshape(*shape)
+
+    def get_results(self, aggregation_method: AggregationMethod = AggregationMethod.MEAN) -> Dict[str, npt.NDArray]:
+        output = {}
+        for key in self.results:
+            output[key] = self.get_result(key, aggregation_method)
+        return output
