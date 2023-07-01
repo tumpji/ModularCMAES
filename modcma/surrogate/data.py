@@ -42,8 +42,11 @@ class SurrogateDataBase:
         """ Push multiple elements into the archive """
         self._act_time += 1
         F = np.array(F).reshape(-1, 1)
-        assert (X.shape[1] == self.parameters.d)
-        assert (X.shape[0] == F.shape[0])
+
+        if len(X) != len(F):
+            raise ValueError('Shapes does not match')
+        if X.shape[1] != self.parameters.d:
+            raise ValueError('The dimension does not match')
 
         # checks for equality
         if self.parameters.surrogate_data_equality_removal:
