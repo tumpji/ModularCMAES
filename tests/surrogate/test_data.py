@@ -1,6 +1,6 @@
 from modcma.surrogate.data import *
 
-from modcma.surrogate.tests.unittest_utils import NumpyUnitTest
+from surrogate.unittest_utils import NumpyUnitTest
 
 import unittest
 import random
