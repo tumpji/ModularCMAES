@@ -12,7 +12,7 @@ class Test_SurrogateData_V1_push_pop_only(unittest.TestCase):
     def fill_in_pseudorandom(self, l):
         self.A.push_many(
             np.arange(l*5).reshape(-1, 5),
-            np.arange(l).reshape(-1, 5)
+            np.arange(l).reshape(-1, 1)
         )
 
     def test_empty_len(self):
@@ -91,21 +91,45 @@ class Test_SurrogateData_V1_push_pop_only(unittest.TestCase):
         self.assertRaises(ValueError, self.A.push, np.arange(5), np.array([]))
 
     def test_insert_xf_wrong_shape(self):
-        self.assertRaises(ValueError, self.A.push, np.arange(7), np.array([1,2]))
+        self.assertRaises(ValueError, self.A.push, np.arange(7), np.array([[1,2]]).T)
 
     def test_insert_many_x_wrong_shape(self):
         self.assertRaises(ValueError, self.A.push_many,
                           np.arange(6*2).reshape(-1, 6),
                           np.array([1, 2]))
-        self.A.push_many(np.arange(5*2).reshape(-1, 5), np.array([1, 2]))
+        self.A.push_many(np.arange(5*2).reshape(-1, 5), np.array([[1, 2]]).T)
 
     def test_insert_many_f_wrong_shape(self):
         self.assertRaises(ValueError, self.A.push_many,
-                          np.arange(5*2).reshape(-1, 6),
+                          np.arange(5*2).reshape(-1, 5),
                           np.array([1, 2, 3]))
-        self.A.push_many(np.arange(5*2).reshape(-1, 5), np.array([1, 2]))
+        self.A.push_many(np.arange(5*2).reshape(-1, 5), np.array([[1, 2]]).T)
 
 
+class Test_SurrogateData_V1_sort(unittest.TestCase):
+    def setUp(self):
+        self.S = Parameters(5)
+        self.S.surrogate_data_max_size_absolute = None
+        self.S.surrogate_data_mahalanobis_space = None
+        self.S.surrogate_data_mahalanobis_space_max_value = np.inf
+
+        self.A = SurrogateData_V1(self.S)
+
+    def fill_in_pseudorandom(self, l):
+        self.A.push_many(
+            np.arange(l*5).reshape(-1, 5),
+            np.arange(l).reshape(-1, 5)
+        )
+
+    def test_sort_default(self):
+        self.A.push_many(
+            np.arange(20*5).reshape(-1, 5),
+            np.arange(20).reshape(-1, 1),
+            time_ordered=True
+        )
+        self.A.sort_all()
+        npt.assert_array_almost_equal(self.A.X, np.arange(20 * 5).reshape(-1, 5))
+        npt.assert_array_almost_equal(self.A.F, np.arange(20).reshape(-1, 1))
 
 '''
 

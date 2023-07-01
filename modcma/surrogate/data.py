@@ -40,13 +40,14 @@ class SurrogateDataBase:
 
     def push_many(self, X, F, time_ordered=False):
         """ Push multiple elements into the archive """
-        self._act_time += 1
-        F = np.array(F).reshape(-1, 1)
-
+        if len(F.shape) != 2 or F.shape[1] != 1:
+            raise ValueError(f'Values have wrong dimensions {F.shape} expected {(len(X), 1)}')
+        if len(X.shape) != 2 or X.shape[1] != self.parameters.d:
+            raise ValueError(f'Features have wrong dimensions {X.shape} expected {(len(X), self.parameters.d)}')
         if len(X) != len(F):
-            raise ValueError('Shapes does not match')
-        if X.shape[1] != self.parameters.d:
-            raise ValueError('The dimension does not match')
+            raise ValueError(f'Number of features and values does not match X: {X.shape}, F: {F.shape}')
+
+        self._act_time += 1
 
         # checks for equality
         if self.parameters.surrogate_data_equality_removal:
@@ -82,19 +83,18 @@ class SurrogateDataBase:
         return (X - self.parameters.m.T) @ self.parameters.inv_root_C.T
 
     def _compute_order_measure(self, selection: slice = slice(None)) -> YType:
-        """ returns the preference for the samples """
+        """ returns the preference for the samples - less is better """
         sort_method = self.parameters.surrogate_data_sorting
 
         if normalize_str_eq(sort_method, 'time'):
-            measure = -self._TIME[selection]
+            measure = -self._TIME[selection, 0]
         elif normalize_str_eq(sort_method, 'lq'):
-            measure = self._F[selection]
+            measure = self._F[selection, 0]
         elif normalize_str_eq(sort_method, 'mahalanobis'):
-            measure = np.sum(np.square(self._to_mahalanobis(self._X[selection])), axis=1, keepdims=True)
+            measure = np.sum(np.square(self._to_mahalanobis(self._X[selection])), axis=1)
         else:
             raise NotImplementedError(f'The sorting method {sort_method} is not implemented.')
 
-        assert measure.shape[1] == 1
         return measure
 
     def sort_all(self):
@@ -102,7 +102,7 @@ class SurrogateDataBase:
         if len(self) <= 1:
             return
 
-        order = np.argsort(self._compute_order_measure(), axis=0)
+        order = np.argsort(-self._compute_order_measure(), axis=0)
 
         for name in self.FIELDS:
             data = getattr(self, name)
