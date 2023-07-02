@@ -109,6 +109,18 @@ class Test_SurrogateData_V1_push_pop_only(unittest.TestCase):
         self.A.push_many(np.arange(5*2).reshape(-1, 5), np.array([[1, 2]]).T)
 
 
+class Test_SurrogateData_V2_push_pop_only(Test_SurrogateData_V1_push_pop_only):
+    def setUp(self):
+        self.S = Parameters(5)
+        self.A = SurrogateData_V2(self.S)
+
+
+class Test_SurrogateData_V3_push_pop_only(Test_SurrogateData_V2_push_pop_only):
+    def setUp(self):
+        self.S = Parameters(5)
+        self.A = SurrogateData_V3(self.S)
+
+
 class Test_SurrogateData_V1_sort(unittest.TestCase):
     def setUp(self):
         self.S = Parameters(5)
@@ -258,6 +270,25 @@ class Test_SurrogateData_V1_weighting(unittest.TestCase):
         self.S.surrogate_data_max_weight = 1.
         self.assertRaises(ValueError, lambda: self.A.W)
 
+
+class Test_SurrogateData_V2_sort(Test_SurrogateData_V1_sort):
+    def setUp(self):
+        self.S = Parameters(5)
+        self.S.surrogate_data_max_size_absolute = None
+        self.S.surrogate_data_mahalanobis_space = None
+        self.S.surrogate_data_mahalanobis_space_max_value = np.inf
+
+        self.A = SurrogateData_V2(self.S)
+
+
+class Test_SurrogateData_V3_sort(Test_SurrogateData_V2_sort):
+    def setUp(self):
+        self.S = Parameters(5)
+        self.S.surrogate_data_max_size_absolute = None
+        self.S.surrogate_data_mahalanobis_space = None
+        self.S.surrogate_data_mahalanobis_space_max_value = np.inf
+
+        self.A = SurrogateData_V3(self.S)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

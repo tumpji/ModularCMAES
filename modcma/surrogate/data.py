@@ -1,5 +1,7 @@
 import collections.abc
+import itertools
 import math
+import copy
 from dataclasses import dataclass
 from typing import Union, Optional
 
@@ -244,17 +246,17 @@ class SurrogateData_V2(SurrogateData_V1):
     def _selection(self) -> NDArrayBool:
         """ computes indexes of training data """
         if self._selection_cache is None:
-            # mahalanobis distance handling ...
-            if self.parameters.surrogate_data_mahalanobis_space \
-                    and self.parameters.surrogate_data_mahalanobis_space_max_value is not None:
-                self._update_X_mahal(compute_norm=True)
-                mask = self._X_mahal_norm <= self.parameters.surrogate_data_mahalanobis_space_max_value
-            else:
-                mask = np.ones(len(self))
+            ok_index = np.arange(len(self))
 
-            # mask is finished, now apply the maximum number of elements
-            assert mask.shape[0] == len(self)
-            self._selection_cache, = np.where(mask)
+            # mahalanobis distance handling ...
+            if self.parameters.surrogate_data_mahalanobis_space_max_value is not None:
+                self._update_X_mahal(compute_norm=True)
+                ok_index = ok_index[self._X_mahal_norm.ravel() <= self.parameters.surrogate_data_mahalanobis_space_max_value]
+
+            if self.parameters.surrogate_data_max_size_absolute is not None:
+                ok_index = ok_index[-self.parameters.surrogate_data_max_size_absolute:]
+
+            self._selection_cache = ok_index
 
             # now apply the maximum number of elements
             self._selection_cache = self._selection_cache[-self._max_training_size:]
@@ -287,8 +289,6 @@ class SurrogateData_V2(SurrogateData_V1):
         if self.parameters.surrogate_data_weighting == 'constant':
             return np.ones(no_elems)
         elif self.parameters.surrogate_data_weighting == 'logarithmic':
-            assert self.parameters.surrogate_data_min_weight > 0.
-            assert self.parameters.surrogate_data_max_weight > 0.
             return np.logspace(np.log10(self.parameters.surrogate_data_min_weight),
                                np.log10(self.parameters.surrogate_data_max_weight),
                                num=no_elems)
