@@ -145,25 +145,30 @@ class SurrogateData_V1(SurrogateDataBase):
         return len(self)
 
     @property
-    def X(self) -> Optional[XType]:  # Covariates
+    def X(self) -> XType:  # Covariates
         """ returns all training data """
         return self._X[-self._max_training_size:]
 
     @property
-    def F(self) -> Optional[YType]:  # Target Values
+    def F(self) -> YType:  # Target Values
         return self._F[-self._max_training_size:]
 
     @property
-    def W(self):  # Weight
+    def W(self) -> YType:  # Weight
+        # checking
+        if self.parameters.surrogate_data_min_weight <= 0.:
+            raise ValueError('surrogate_data_min_weight should be bigger than 0')
+        if self.parameters.surrogate_data_max_weight <= 0.:
+            raise ValueError('surrogate_data_max_weight should be bigger than 0')
+        if self.parameters.surrogate_data_max_weight <= self.parameters.surrogate_data_min_weight:
+            raise ValueError('surrogate_data_max_weight should be bigger than surrogate_data_min_weight')
+
         if self.parameters.surrogate_data_weighting == 'constant':
             return np.ones(self._max_training_size)
         elif self.parameters.surrogate_data_weighting == 'logarithmic':
-            assert self.parameters.surrogate_data_min_weight > 0.
-            assert self.parameters.surrogate_data_max_weight > 0.
-            return np.logspace(np.log10(self.parameters.surrogate_data_max_weight),
-                               np.log10(self.parameters.surrogate_data_min_weight),
+            return np.logspace(np.log10(self.parameters.surrogate_data_min_weight),
+                               np.log10(self.parameters.surrogate_data_max_weight),
                                num=self._max_training_size)
-            pass
         elif self.parameters.surrogate_data_weighting == 'linear':
             return np.linspace(self.parameters.surrogate_data_min_weight,
                                self.parameters.surrogate_data_max_weight,
@@ -256,7 +261,7 @@ class SurrogateData_V2(SurrogateData_V1):
         return self._selection_cache
 
     @property
-    def X(self) -> Optional[XType]:  # Covariates
+    def X(self) -> XType:  # Covariates
         if self.parameters.surrogate_data_mahalanobis_space:
             self._update_X_mahal()
             return self._X_mahal[self._selection]
@@ -264,22 +269,29 @@ class SurrogateData_V2(SurrogateData_V1):
             return self._X[self._selection]
 
     @property
-    def F(self) -> Optional[YType]:  # Target Values
+    def F(self) -> YType:  # Target Values
         return self._F[self._selection]
 
     @property
-    def W(self):  # Weight
+    def W(self) -> YType:  # Weight
         no_elems = len(self._selection)
+
+        # checking
+        if self.parameters.surrogate_data_min_weight <= 0.:
+            raise ValueError('surrogate_data_min_weight should be bigger than 0')
+        if self.parameters.surrogate_data_max_weight <= 0.:
+            raise ValueError('surrogate_data_max_weight should be bigger than 0')
+        if self.parameters.surrogate_data_max_weight <= self.parameters.surrogate_data_min_weight:
+            raise ValueError('surrogate_data_max_weight should be bigger than surrogate_data_min_weight')
 
         if self.parameters.surrogate_data_weighting == 'constant':
             return np.ones(no_elems)
         elif self.parameters.surrogate_data_weighting == 'logarithmic':
             assert self.parameters.surrogate_data_min_weight > 0.
             assert self.parameters.surrogate_data_max_weight > 0.
-            return np.logspace(np.log10(self.parameters.surrogate_data_max_weight),
-                               np.log10(self.parameters.surrogate_data_min_weight),
+            return np.logspace(np.log10(self.parameters.surrogate_data_min_weight),
+                               np.log10(self.parameters.surrogate_data_max_weight),
                                num=no_elems)
-            pass
         elif self.parameters.surrogate_data_weighting == 'linear':
             return np.linspace(self.parameters.surrogate_data_min_weight,
                                self.parameters.surrogate_data_max_weight,
